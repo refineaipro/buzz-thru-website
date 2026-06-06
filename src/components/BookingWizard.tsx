@@ -5,6 +5,10 @@ import { format } from "date-fns";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { CAR_TYPES } from "@/lib/constants";
+import {
+  INSIDE_OUTSIDE_WASHES,
+  OUTSIDE_ONLY_WASHES,
+} from "@/lib/services-catalog";
 import type { Location, Service } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
@@ -18,6 +22,7 @@ type BookingWizardProps = {
   locations: Location[];
   services: Service[];
   initialLocationId?: string;
+  initialServiceSlug?: string;
 };
 
 const steps = ["Location", "Service", "Date & Time", "Details", "Payment"];
@@ -26,6 +31,7 @@ export function BookingWizard({
   locations,
   services,
   initialLocationId,
+  initialServiceSlug,
 }: BookingWizardProps) {
   const [step, setStep] = useState(0);
   const [locationId, setLocationId] = useState(initialLocationId ?? "");
@@ -47,6 +53,12 @@ export function BookingWizard({
 
   const selectedLocation = locations.find((l) => l.id === locationId);
   const selectedService = services.find((s) => s.id === serviceId);
+
+  useEffect(() => {
+    if (!initialServiceSlug || serviceId) return;
+    const match = services.find((service) => service.slug === initialServiceSlug);
+    if (match) setServiceId(match.id);
+  }, [initialServiceSlug, serviceId, services]);
 
   useEffect(() => {
     fetch("/api/slots/dates")
@@ -166,28 +178,59 @@ export function BookingWizard({
       ) : null}
 
       {step === 1 ? (
-        <div className="space-y-4">
-          {services.map((service) => (
-            <button
-              key={service.id}
-              type="button"
-              onClick={() => setServiceId(service.id)}
-              className={cn(
-                "flex w-full items-center justify-between rounded-2xl border p-5 text-left transition-colors duration-200",
-                serviceId === service.id
-                  ? "border-brand-navy bg-brand-sky"
-                  : "border-blue-100 hover:border-brand-blue",
-              )}
-            >
-              <div>
-                <h3 className="font-semibold text-brand-navy">{service.name}</h3>
-                <p className="mt-1 text-sm text-slate-600">{service.description}</p>
+        <div className="space-y-8">
+          {[
+            { title: "Inside & Outside Cleaning", packages: INSIDE_OUTSIDE_WASHES },
+            { title: "Outside Only Cleaning", packages: OUTSIDE_ONLY_WASHES },
+          ].map((group) => (
+            <div key={group.title}>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-brand-blue">
+                {group.title}
+              </h3>
+              <div className="mt-4 space-y-4">
+                {group.packages.map((pkg) => {
+                  const service = services.find((item) => item.slug === pkg.slug);
+                  if (!service) return null;
+
+                  return (
+                    <button
+                      key={service.id}
+                      type="button"
+                      onClick={() => setServiceId(service.id)}
+                      className={cn(
+                        "flex w-full items-start justify-between gap-4 rounded-2xl border p-5 text-left transition-colors duration-200",
+                        serviceId === service.id
+                          ? "border-brand-navy bg-brand-sky"
+                          : "border-blue-100 hover:border-brand-blue",
+                      )}
+                    >
+                      <div>
+                        <h4 className="font-semibold text-brand-navy">{service.name}</h4>
+                        <p className="mt-1 text-sm text-slate-600">{service.description}</p>
+                        <ul className="mt-3 space-y-1">
+                          {pkg.features.slice(0, 4).map((feature) => (
+                            <li key={feature} className="text-xs text-slate-500">
+                              • {feature}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <span className="shrink-0 text-lg font-bold text-brand-red">
+                        {formatCurrency(service.price)}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
-              <span className="text-lg font-bold text-brand-red">
-                {formatCurrency(service.price)}
-              </span>
-            </button>
+            </div>
           ))}
+          <p className="text-sm text-slate-500">
+            Mini Detail, Pro Wax, and Combo packages are available at the location.{" "}
+            <a href="/contact" className="font-semibold text-brand-navy hover:opacity-80">
+              Contact us
+            </a>{" "}
+            to learn more.
+          </p>
         </div>
       ) : null}
 

@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 };
 
 type BookPageProps = {
-  searchParams: Promise<{ location?: string }>;
+  searchParams: Promise<{ location?: string; service?: string }>;
 };
 
 export default async function BookPage({ searchParams }: BookPageProps) {
@@ -30,6 +30,7 @@ export default async function BookPage({ searchParams }: BookPageProps) {
           locations={locations}
           services={services}
           initialLocationId={params.location}
+          initialServiceSlug={params.service}
         />
       </div>
     </div>

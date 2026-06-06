@@ -129,7 +129,7 @@ export default async function HomePage() {
         <SectionHeading
           eyebrow="Our Services"
           title="Washes for every budget"
-          description="All prices include tax. Final pricing will be confirmed by the client."
+          description="Hand-finished washes with soft microfiber drying. All listed prices include tax."
         />
         <div className="mt-10 grid gap-6 md:grid-cols-2">
           {services.map((service) => (

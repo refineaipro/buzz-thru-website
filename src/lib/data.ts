@@ -1,4 +1,5 @@
 import type { Location, Service } from "@/lib/types";
+import { BOOKABLE_WASHES } from "@/lib/services-catalog";
 
 export const PLACEHOLDER_LOCATIONS: Location[] = [
   {
@@ -29,44 +30,15 @@ export const PLACEHOLDER_LOCATIONS: Location[] = [
   },
 ];
 
-export const PLACEHOLDER_SERVICES: Service[] = [
-  {
-    id: "svc-1",
-    name: "Express Buzz",
-    slug: "express-buzz",
-    description: "Quick exterior wash with soap, rinse, and dry.",
-    price: 14.99,
-    duration_minutes: 30,
-    featured: true,
-  },
-  {
-    id: "svc-2",
-    name: "Deluxe Buzz",
-    slug: "deluxe-buzz",
-    description: "Exterior wash plus tire shine and undercarriage rinse.",
-    price: 24.99,
-    duration_minutes: 30,
-    featured: true,
-  },
-  {
-    id: "svc-3",
-    name: "Full Thru Clean",
-    slug: "full-thru-clean",
-    description: "Complete exterior and interior vacuum with dash wipe-down.",
-    price: 39.99,
-    duration_minutes: 30,
-    featured: false,
-  },
-  {
-    id: "svc-4",
-    name: "Buzz & Shine",
-    slug: "buzz-and-shine",
-    description: "Premium wash with wax protection and interior detail.",
-    price: 54.99,
-    duration_minutes: 30,
-    featured: false,
-  },
-];
+export const PLACEHOLDER_SERVICES: Service[] = BOOKABLE_WASHES.map((wash, index) => ({
+  id: `svc-${wash.slug}`,
+  name: wash.name,
+  slug: wash.slug,
+  description: wash.features.slice(0, 2).join(". ") + ".",
+  price: wash.price,
+  duration_minutes: 30,
+  featured: index < 2,
+}));
 
 export const FAQ_ITEMS = [
   {

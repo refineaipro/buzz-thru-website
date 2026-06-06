@@ -90,11 +90,18 @@ on conflict (slug) do update set
   hours = excluded.hours;
 
 insert into services (name, slug, description, price, duration_minutes, featured) values
-  ('Express Buzz', 'express-buzz', 'Quick exterior wash with soap, rinse, and dry.', 14.99, 30, true),
-  ('Deluxe Buzz', 'deluxe-buzz', 'Exterior wash plus tire shine and undercarriage rinse.', 24.99, 30, true),
-  ('Full Thru Clean', 'full-thru-clean', 'Complete exterior and interior vacuum with dash wipe-down.', 39.99, 30, false),
-  ('Buzz & Shine', 'buzz-and-shine', 'Premium wash with wax protection and interior detail.', 54.99, 30, false)
-on conflict (slug) do nothing;
+  ('RVA Ceramic Shine', 'rva-ceramic-shine', 'Full inside and outside hand-finished wash with ceramic sealant.', 45.95, 30, true),
+  ('Extreme Hot Wax', 'extreme-hot-wax', 'Full inside and outside wash with Simoniz hot wax.', 35.45, 30, true),
+  ('Rainbow', 'rainbow', 'Full inside and outside wash with double bond wax.', 28.95, 30, false),
+  ('Ultimate', 'ultimate', 'Outside-only wash with ceramic sealant and tire shine.', 18.95, 30, false),
+  ('Deluxe', 'deluxe', 'Outside-only wash with hot wax and tire shine.', 15.95, 30, false),
+  ('Quick', 'quick', 'Outside-only quick wash with double bond wax.', 12.95, 30, false)
+on conflict (slug) do update set
+  name = excluded.name,
+  description = excluded.description,
+  price = excluded.price,
+  duration_minutes = excluded.duration_minutes,
+  featured = excluded.featured;
 
 create or replace function update_updated_at()
 returns trigger as $$
