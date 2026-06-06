@@ -1,0 +1,110 @@
+-- Buzz Thru Car Wash: run in Supabase SQL Editor
+
+create extension if not exists "pgcrypto";
+
+create table if not exists locations (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  slug text unique not null,
+  address text not null,
+  city text not null,
+  state text not null,
+  zip text not null,
+  phone text not null,
+  lat double precision not null,
+  lng double precision not null,
+  hours text not null default 'Mon–Sat: 8:00 AM – 6:00 PM · Closed Sunday',
+  created_at timestamptz not null default now()
+);
+
+create table if not exists services (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  slug text unique not null,
+  description text not null,
+  price numeric(10, 2) not null,
+  duration_minutes integer not null default 30,
+  featured boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists bookings (
+  id uuid primary key default gen_random_uuid(),
+  confirmation_code text unique not null,
+  location_id uuid not null references locations(id),
+  service_id uuid not null references services(id),
+  scheduled_at timestamptz not null,
+  customer_name text not null,
+  customer_email text not null,
+  customer_phone text not null,
+  car_type text not null,
+  license_plate text not null,
+  status text not null default 'confirmed',
+  payment_status text not null default 'paid',
+  amount numeric(10, 2) not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists bookings_scheduled_at_idx on bookings (scheduled_at);
+create index if not exists bookings_customer_phone_idx on bookings (customer_phone);
+create index if not exists bookings_location_scheduled_idx on bookings (location_id, scheduled_at);
+
+alter table locations enable row level security;
+alter table services enable row level security;
+alter table bookings enable row level security;
+
+create policy "Public read locations"
+  on locations for select
+  to anon, authenticated
+  using (true);
+
+create policy "Public read services"
+  on services for select
+  to anon, authenticated
+  using (true);
+
+create policy "Admin read bookings"
+  on bookings for select
+  to authenticated
+  using (true);
+
+create policy "Admin update bookings"
+  on bookings for update
+  to authenticated
+  using (true);
+
+-- Real location data (Richmond, VA)
+insert into locations (name, slug, address, city, state, zip, phone, lat, lng, hours) values
+  ('Buzz Thru - Hull Street', 'hull-street', '3704 Hull St', 'Richmond', 'VA', '23224', '(804) 910-1930', 37.5044, -77.4694, 'Open 24 hours'),
+  ('Buzz Thru - Midlothian Turnpike', 'midlothian-turnpike', '5223 Midlothian Turnpike', 'Richmond', 'VA', '23225', '(804) 910-1930', 37.4974, -77.5018, 'Open 24 hours')
+on conflict (slug) do update set
+  name = excluded.name,
+  address = excluded.address,
+  city = excluded.city,
+  state = excluded.state,
+  zip = excluded.zip,
+  phone = excluded.phone,
+  lat = excluded.lat,
+  lng = excluded.lng,
+  hours = excluded.hours;
+
+insert into services (name, slug, description, price, duration_minutes, featured) values
+  ('Express Buzz', 'express-buzz', 'Quick exterior wash with soap, rinse, and dry.', 14.99, 30, true),
+  ('Deluxe Buzz', 'deluxe-buzz', 'Exterior wash plus tire shine and undercarriage rinse.', 24.99, 30, true),
+  ('Full Thru Clean', 'full-thru-clean', 'Complete exterior and interior vacuum with dash wipe-down.', 39.99, 30, false),
+  ('Buzz & Shine', 'buzz-and-shine', 'Premium wash with wax protection and interior detail.', 54.99, 30, false)
+on conflict (slug) do nothing;
+
+create or replace function update_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists bookings_updated_at on bookings;
+create trigger bookings_updated_at
+  before update on bookings
+  for each row execute function update_updated_at();

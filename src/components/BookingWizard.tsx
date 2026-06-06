@@ -1,0 +1,352 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { format } from "date-fns";
+import { Button } from "@/components/Button";
+import { Card } from "@/components/Card";
+import { CAR_TYPES } from "@/lib/constants";
+import type { Location, Service } from "@/lib/types";
+import { cn, formatCurrency } from "@/lib/utils";
+
+type TimeSlot = {
+  value: string;
+  label: string;
+  available: boolean;
+};
+
+type BookingWizardProps = {
+  locations: Location[];
+  services: Service[];
+  initialLocationId?: string;
+};
+
+const steps = ["Location", "Service", "Date & Time", "Details", "Payment"];
+
+export function BookingWizard({
+  locations,
+  services,
+  initialLocationId,
+}: BookingWizardProps) {
+  const [step, setStep] = useState(0);
+  const [locationId, setLocationId] = useState(initialLocationId ?? "");
+  const [serviceId, setServiceId] = useState("");
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
+  const [slots, setSlots] = useState<TimeSlot[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [bookableDates, setBookableDates] = useState<string[]>([]);
+  const [form, setForm] = useState({
+    customerName: "",
+    customerEmail: "",
+    customerPhone: "",
+    carType: CAR_TYPES[0] as string,
+    licensePlate: "",
+  });
+
+  const selectedLocation = locations.find((l) => l.id === locationId);
+  const selectedService = services.find((s) => s.id === serviceId);
+
+  useEffect(() => {
+    fetch("/api/slots/dates")
+      .then((res) => res.json())
+      .then((data) => setBookableDates(data.dates ?? []))
+      .catch(() => setError("Could not load available dates."));
+  }, []);
+
+  useEffect(() => {
+    if (!locationId || !date) return;
+
+    setLoadingSlots(true);
+    fetch(`/api/slots?locationId=${locationId}&date=${date}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setSlots(data.slots ?? []);
+        setTime("");
+      })
+      .catch(() => setError("Could not load time slots."))
+      .finally(() => setLoadingSlots(false));
+  }, [locationId, date]);
+
+  const canContinue = useMemo(() => {
+    switch (step) {
+      case 0:
+        return Boolean(locationId);
+      case 1:
+        return Boolean(serviceId);
+      case 2:
+        return Boolean(date && time);
+      case 3:
+        return (
+          form.customerName.trim() &&
+          form.customerEmail.trim() &&
+          form.customerPhone.trim() &&
+          form.licensePlate.trim()
+        );
+      default:
+        return true;
+    }
+  }, [step, locationId, serviceId, date, time, form]);
+
+  async function handleSubmit() {
+    setSubmitting(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          locationId,
+          serviceId,
+          scheduledAt: time,
+          ...form,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Booking failed.");
+
+      window.location.href = `/confirmation/${data.booking.id}?code=${data.booking.confirmation_code}`;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Booking failed.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="mx-auto max-w-3xl">
+      <div className="mb-8 flex flex-wrap gap-2">
+        {steps.map((label, index) => (
+          <div
+            key={label}
+            className={cn(
+              "rounded-full px-3 py-1 text-xs font-medium",
+              index === step
+                ? "bg-brand-navy text-white"
+                : index < step
+                  ? "bg-brand-blue text-white"
+                  : "bg-brand-sky text-brand-navy",
+            )}
+          >
+            {index + 1}. {label}
+          </div>
+        ))}
+      </div>
+
+      {error ? (
+        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      ) : null}
+
+      {step === 0 ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {locations.map((location) => (
+            <button
+              key={location.id}
+              type="button"
+              onClick={() => setLocationId(location.id)}
+              className={cn(
+                "rounded-2xl border p-5 text-left transition-colors duration-200",
+                locationId === location.id
+                  ? "border-brand-navy bg-brand-sky"
+                  : "border-blue-100 hover:border-brand-blue",
+              )}
+            >
+              <h3 className="font-semibold text-brand-navy">{location.name}</h3>
+              <p className="mt-2 text-sm text-slate-600">
+                {location.address}, {location.city}
+              </p>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {step === 1 ? (
+        <div className="space-y-4">
+          {services.map((service) => (
+            <button
+              key={service.id}
+              type="button"
+              onClick={() => setServiceId(service.id)}
+              className={cn(
+                "flex w-full items-center justify-between rounded-2xl border p-5 text-left transition-colors duration-200",
+                serviceId === service.id
+                  ? "border-brand-navy bg-brand-sky"
+                  : "border-blue-100 hover:border-brand-blue",
+              )}
+            >
+              <div>
+                <h3 className="font-semibold text-brand-navy">{service.name}</h3>
+                <p className="mt-1 text-sm text-slate-600">{service.description}</p>
+              </div>
+              <span className="text-lg font-bold text-brand-red">
+                {formatCurrency(service.price)}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {step === 2 ? (
+        <div className="grid gap-6 md:grid-cols-2">
+          <div>
+            <label className="text-sm font-medium text-brand-navy">Date</label>
+            <select
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="mt-2 w-full rounded-lg border border-blue-100 px-4 py-3 text-sm"
+            >
+              <option value="">Select a date</option>
+              {bookableDates.map((value) => (
+                <option key={value} value={value}>
+                  {format(new Date(`${value}T12:00:00`), "EEEE, MMM d")}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-brand-navy">Time</label>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {loadingSlots ? (
+                <p className="col-span-3 text-sm text-slate-500">Loading slots...</p>
+              ) : slots.length ? (
+                slots.map((slot) => (
+                  <button
+                    key={slot.value}
+                    type="button"
+                    disabled={!slot.available}
+                    onClick={() => setTime(slot.value)}
+                    className={cn(
+                      "rounded-lg px-2 py-2 text-xs font-medium transition-colors duration-200",
+                      !slot.available && "cursor-not-allowed opacity-40",
+                      time === slot.value
+                        ? "bg-brand-navy text-white"
+                        : slot.available
+                          ? "bg-brand-sky text-brand-navy hover:bg-brand-blue hover:text-white"
+                          : "bg-slate-100 text-slate-400",
+                    )}
+                  >
+                    {slot.label}
+                  </button>
+                ))
+              ) : (
+                <p className="col-span-3 text-sm text-slate-500">
+                  Select a date to see available times.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {step === 3 ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {[
+            { key: "customerName", label: "Full Name", type: "text" },
+            { key: "customerEmail", label: "Email", type: "email" },
+            { key: "customerPhone", label: "Phone", type: "tel" },
+            { key: "licensePlate", label: "License Plate", type: "text" },
+          ].map((field) => (
+            <div
+              key={field.key}
+              className={field.key === "customerName" ? "sm:col-span-2" : ""}
+            >
+              <label className="text-sm font-medium text-brand-navy">
+                {field.label}
+              </label>
+              <input
+                type={field.type}
+                value={form[field.key as keyof typeof form]}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, [field.key]: e.target.value }))
+                }
+                className="mt-2 w-full rounded-lg border border-blue-100 px-4 py-3 text-sm"
+              />
+            </div>
+          ))}
+          <div>
+            <label className="text-sm font-medium text-brand-navy">Car Type</label>
+            <select
+              value={form.carType}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, carType: e.target.value }))
+              }
+              className="mt-2 w-full rounded-lg border border-blue-100 px-4 py-3 text-sm"
+            >
+              {CAR_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      ) : null}
+
+      {step === 4 && selectedLocation && selectedService ? (
+        <Card>
+          <h3 className="text-lg font-semibold text-brand-navy">Order Summary</h3>
+          <dl className="mt-4 space-y-3 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-slate-600">Location</dt>
+              <dd className="font-medium">{selectedLocation.name}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-slate-600">Service</dt>
+              <dd className="font-medium">{selectedService.name}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-slate-600">Date & Time</dt>
+              <dd className="font-medium">
+                {time ? format(new Date(time), "MMM d, yyyy · h:mm a") : "Not selected"}
+              </dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-slate-600">Vehicle</dt>
+              <dd className="font-medium">
+                {form.carType} · {form.licensePlate.toUpperCase()}
+              </dd>
+            </div>
+            <div className="flex justify-between border-t border-blue-100 pt-3 text-base">
+              <dt className="font-semibold text-brand-navy">Total (tax incl.)</dt>
+              <dd className="font-bold text-brand-red">
+                {formatCurrency(selectedService.price)}
+              </dd>
+            </div>
+          </dl>
+          <p className="mt-4 rounded-lg bg-brand-sky px-4 py-3 text-sm text-slate-600">
+            Payment placeholder. Stripe will be connected later. Clicking confirm
+            simulates a successful payment.
+          </p>
+        </Card>
+      ) : null}
+
+      <div className="mt-8 flex justify-between gap-4">
+        <Button
+          variant="secondary"
+          onClick={() => setStep((prev) => Math.max(prev - 1, 0))}
+          disabled={step === 0 || submitting}
+        >
+          Back
+        </Button>
+
+        {step < steps.length - 1 ? (
+          <Button
+            onClick={() => setStep((prev) => prev + 1)}
+            disabled={!canContinue}
+          >
+            Continue
+          </Button>
+        ) : (
+          <Button onClick={handleSubmit} disabled={submitting}>
+            {submitting ? "Confirming..." : "Confirm & Pay"}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
