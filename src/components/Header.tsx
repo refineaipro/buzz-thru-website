@@ -8,11 +8,12 @@ import { cn } from "@/lib/utils";
 
 const links = [
   { href: "/", label: "Home" },
-  { href: "/services", label: "Services" },
+  { href: "/services", label: "Hand Wash" },
+  { href: "/self-serve", label: "Self-Serve" },
   { href: "/locations", label: "Locations" },
-  { href: "/book", label: "Book a Wash" },
+  { href: "/book", label: "Book Hand Wash" },
+  { href: "/fleet", label: "Fleet" },
   { href: "/about", label: "About" },
-  { href: "/faq", label: "FAQ" },
   { href: "/contact", label: "Contact" },
 ];
 
@@ -55,7 +56,7 @@ export function Header() {
             href="/book"
             className="rounded-lg bg-brand-red px-3 py-2 text-sm font-semibold text-white transition-opacity duration-200 hover:opacity-90 sm:px-4"
           >
-            Book Now
+            Book Hand Wash
           </Link>
           <MobileNav />
         </div>

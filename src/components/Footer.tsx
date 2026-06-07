@@ -50,15 +50,23 @@ export async function Footer() {
                     href="/book"
                     className="text-slate-600 transition-opacity hover:text-brand-navy hover:opacity-80"
                   >
-                    Book a Wash
+                    Book Hand Wash
                   </Link>
                 </li>
                 <li>
                   <Link
-                    href="/faq"
+                    href="/fleet"
                     className="text-slate-600 transition-opacity hover:text-brand-navy hover:opacity-80"
                   >
-                    FAQ
+                    Fleet
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/contact"
+                    className="text-slate-600 transition-opacity hover:text-brand-navy hover:opacity-80"
+                  >
+                    Contact & FAQ
                   </Link>
                 </li>
               </ul>

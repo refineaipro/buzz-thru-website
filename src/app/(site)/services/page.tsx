@@ -18,7 +18,7 @@ import {
 import { formatCurrency } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: "Services",
+  title: "Hand Wash Services",
 };
 
 function ComparisonCell({ value }: { value: boolean | string | false }) {
@@ -35,10 +35,24 @@ export default function ServicesPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
       <SectionHeading
-        eyebrow="Our Washes"
+        eyebrow="Attendant Hand Wash"
         title="Services & Pricing"
-        description="Hand-finished washes with soft microfiber drying. All listed wash prices include tax."
+        description="Our team hand-washes your car. Book online for a reserved time slot. All listed prices include tax."
       />
+
+      <Card className="mt-8 border-brand-blue/20 bg-brand-light">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-semibold text-brand-navy">Looking for self-serve bays?</p>
+            <p className="mt-1 text-sm text-slate-600">
+              Wash your own car with no appointment. Info only, no online booking.
+            </p>
+          </div>
+          <Button href="/self-serve" variant="secondary" className="shrink-0">
+            Self-Serve Info
+          </Button>
+        </div>
+      </Card>
 
       <section className="mt-12">
         <SectionHeading
@@ -151,7 +165,7 @@ export default function ServicesPage() {
           Book online for inside/outside and outside-only packages.
         </p>
         <Button href="/book" className="mt-6">
-          Book a Wash
+          Book Hand Wash
         </Button>
       </div>
     </div>

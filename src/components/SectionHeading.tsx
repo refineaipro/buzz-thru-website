@@ -6,6 +6,7 @@ type SectionHeadingProps = {
   description?: string;
   align?: "left" | "center";
   className?: string;
+  descriptionClassName?: string;
 };
 
 export function SectionHeading({
@@ -14,6 +15,7 @@ export function SectionHeading({
   description,
   align = "left",
   className,
+  descriptionClassName,
 }: SectionHeadingProps) {
   return (
     <div className={cn(align === "center" && "text-center", className)}>
@@ -30,6 +32,7 @@ export function SectionHeading({
           className={cn(
             "mt-3 max-w-2xl text-base text-slate-600",
             align === "center" && "mx-auto",
+            descriptionClassName,
           )}
         >
           {description}

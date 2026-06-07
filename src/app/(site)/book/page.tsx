@@ -4,7 +4,7 @@ import { SectionHeading } from "@/components/SectionHeading";
 import { getLocations, getServices } from "@/lib/queries";
 
 export const metadata: Metadata = {
-  title: "Book a Wash",
+  title: "Book Hand Wash",
 };
 
 type BookPageProps = {
@@ -21,9 +21,9 @@ export default async function BookPage({ searchParams }: BookPageProps) {
   return (
     <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
       <SectionHeading
-        eyebrow="Online Booking"
-        title="Book a Wash"
-        description="Choose your location, service, and time. Appointments must be booked at least 24 hours in advance."
+        eyebrow="Attendant Hand Wash"
+        title="Book Hand Wash"
+        description="Our team washes your car. Choose your location, package, and time. Appointments must be booked at least 24 hours in advance."
       />
       <div className="mt-10">
         <BookingWizard

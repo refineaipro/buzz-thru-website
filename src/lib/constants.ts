@@ -1,7 +1,7 @@
 export const BUSINESS = {
   name: "Buzz Thru Car Wash",
   tagline: "Drive in dirty. Buzz out clean.",
-  email: "hello@buzzthru.com",
+  email: "buzz@buzzthrucarwash.com",
   phone: "(804) 910-1930",
 } as const;
 

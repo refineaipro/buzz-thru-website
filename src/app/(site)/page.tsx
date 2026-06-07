@@ -63,13 +63,13 @@ export default async function HomePage() {
               <span className="block text-brand-red">Buzz out clean.</span>
             </h1>
             <p className="mt-5 max-w-xl text-lg text-slate-600">
-              {BUSINESS.tagline} Book your wash online in minutes. Pick your
-              location, choose a service, and roll up when it&apos;s your time.
+              {BUSINESS.tagline} Book an attendant hand wash online, or use our
+              self-serve bays anytime with no appointment.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <Button href="/book">Book a Wash</Button>
-              <Button href="/services" variant="secondary">
-                View Services
+              <Button href="/book">Book Hand Wash</Button>
+              <Button href="/self-serve" variant="secondary">
+                Self-Serve Info
               </Button>
             </div>
           </div>
@@ -183,7 +183,7 @@ export default async function HomePage() {
             or phone number when you arrive.
           </p>
           <Button href="/book" className="bg-brand-red">
-            Book Your Wash Now
+            Book Hand Wash Now
           </Button>
         </div>
       </section>
