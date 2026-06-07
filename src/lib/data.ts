@@ -37,8 +37,8 @@ export const PLACEHOLDER_LOCATIONS: Location[] = [
     state: "VA",
     zip: "23224",
     phone: "(804) 910-1930",
-    lat: 37.5142,
-    lng: -77.4591,
+    lat: 37.4785,
+    lng: -77.4809,
     hours: "Open 24 hours",
   },
 ];

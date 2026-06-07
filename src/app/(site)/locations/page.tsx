@@ -4,6 +4,7 @@ import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { SectionHeading } from "@/components/SectionHeading";
 import { getLocations } from "@/lib/queries";
+import { formatLocationAddress, getGoogleMapsEmbedUrl } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Locations",
@@ -28,7 +29,7 @@ export default async function LocationsPage() {
               className="h-56 w-full border-0"
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
-              src={`https://maps.google.com/maps?q=${location.lat},${location.lng}&z=15&output=embed`}
+              src={getGoogleMapsEmbedUrl(location)}
             />
             <div className="p-6">
               <h3 className="text-xl font-semibold text-brand-navy">
@@ -37,8 +38,7 @@ export default async function LocationsPage() {
               <ul className="mt-4 space-y-3 text-sm text-slate-600">
                 <li className="flex items-start gap-2">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand-red" />
-                  {location.address}, {location.city}, {location.state}{" "}
-                  {location.zip}
+                  {formatLocationAddress(location)}
                 </li>
                 <li className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-brand-blue" />
@@ -58,7 +58,7 @@ export default async function LocationsPage() {
                 </Button>
                 <Button
                   href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
-                    `${location.address}, ${location.city}, ${location.state} ${location.zip}`,
+                    formatLocationAddress(location),
                   )}`}
                   variant="secondary"
                   className="w-full sm:w-auto"
