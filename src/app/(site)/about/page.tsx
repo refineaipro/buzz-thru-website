@@ -18,7 +18,7 @@ export default function AboutPage() {
       <div className="prose prose-slate mt-10 max-w-3xl">
         <p className="text-lg leading-8 text-slate-600">
           Buzz Thru Car Wash was built on a simple idea: make getting your car
-          clean fast, friendly, and hassle-free. With two Richmond-area locations
+          clean fast, friendly, and hassle-free. With three Richmond-area locations
           and online booking, we help busy drivers stay on schedule without
           sacrificing a spotless shine.
         </p>

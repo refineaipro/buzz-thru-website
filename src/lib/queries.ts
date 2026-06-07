@@ -65,17 +65,49 @@ async function ensureBookableServicesInDb(): Promise<Service[]> {
   return synced.map((service) => mergeServiceWithCatalog(service as Service));
 }
 
-export async function getLocations(): Promise<Location[]> {
-  if (!isSupabaseConfigured()) return PLACEHOLDER_LOCATIONS;
+async function ensureLocationsInDb(): Promise<Location[]> {
+  const supabase = createServiceClient();
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const rows = PLACEHOLDER_LOCATIONS.map((location) => ({
+    name: location.name,
+    slug: location.slug,
+    address: location.address,
+    city: location.city,
+    state: location.state,
+    zip: location.zip,
+    phone: location.phone,
+    lat: location.lat,
+    lng: location.lng,
+    hours: location.hours,
+  }));
+
+  const { error: upsertError } = await supabase
     .from("locations")
-    .select("*")
-    .order("name");
+    .upsert(rows, { onConflict: "slug" });
+
+  if (upsertError) throw upsertError;
+
+  const { data, error } = await supabase.from("locations").select("*").order("name");
 
   if (error || !data?.length) return PLACEHOLDER_LOCATIONS;
   return data as Location[];
+}
+
+export async function getLocations(): Promise<Location[]> {
+  if (!isSupabaseConfigured()) return PLACEHOLDER_LOCATIONS;
+
+  try {
+    return await ensureLocationsInDb();
+  } catch {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("locations")
+      .select("*")
+      .order("name");
+
+    if (error || !data?.length) return PLACEHOLDER_LOCATIONS;
+    return data as Location[];
+  }
 }
 
 export async function getServices(): Promise<Service[]> {

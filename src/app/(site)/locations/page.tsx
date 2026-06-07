@@ -16,11 +16,11 @@ export default async function LocationsPage() {
     <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
       <SectionHeading
         eyebrow="Find Us"
-        title="Two Convenient Locations"
-        description="Both Richmond locations are open 24 hours. Book online for Mon–Sat appointment slots, 8 AM to 6 PM."
+        title="Three Convenient Locations"
+        description="All Richmond locations are open 24 hours. Book online for Mon–Sat appointment slots, 8 AM to 6 PM."
       />
 
-      <div className="mt-10 grid gap-8 lg:grid-cols-2">
+      <div className="mt-10 grid gap-8 lg:grid-cols-3">
         {locations.map((location) => (
           <Card key={location.id} className="overflow-hidden p-0">
             <iframe

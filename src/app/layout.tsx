@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     template: `%s | ${BUSINESS.name}`,
   },
   description:
-    "Book your car wash online at Buzz Thru. Two convenient locations, fast service, and sparkling results.",
+    "Book your car wash online at Buzz Thru. Three convenient locations, fast service, and sparkling results.",
 };
 
 export default function RootLayout({

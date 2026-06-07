@@ -28,6 +28,19 @@ export const PLACEHOLDER_LOCATIONS: Location[] = [
     lng: -77.5018,
     hours: "Open 24 hours",
   },
+  {
+    id: "loc-broad-rock",
+    name: "Buzz Thru - Broad Rock Blvd",
+    slug: "broad-rock-blvd",
+    address: "2869 Broad Rock Blvd",
+    city: "Richmond",
+    state: "VA",
+    zip: "23224",
+    phone: "(804) 910-1930",
+    lat: 37.5142,
+    lng: -77.4591,
+    hours: "Open 24 hours",
+  },
 ];
 
 export const PLACEHOLDER_SERVICES: Service[] = BOOKABLE_WASHES.map((wash, index) => ({
@@ -49,7 +62,7 @@ export const FAQ_ITEMS = [
   {
     question: "What are your hours?",
     answer:
-      "Both Richmond locations are open 24 hours. Online appointments are available Monday through Saturday, 8:00 AM to 6:00 PM.",
+      "All three Richmond locations are open 24 hours. Online appointments are available Monday through Saturday, 8:00 AM to 6:00 PM.",
   },
   {
     question: "Can I cancel or reschedule?",

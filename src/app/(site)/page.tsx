@@ -37,9 +37,9 @@ const ADVANTAGES = [
   },
   {
     icon: MapPin,
-    title: "Two spots, open 24 hours",
+    title: "Three spots, open 24 hours",
     description:
-      "Hull Street or Midlothian Turnpike. Drive-through convenience in Richmond whenever you need a wash.",
+      "Hull Street, Midlothian Turnpike, or Broad Rock Blvd. Drive-through convenience in Richmond whenever you need a wash.",
   },
 ] as const;
 
@@ -94,7 +94,7 @@ export default async function HomePage() {
             <Card className="sm:col-span-2">
               <MapPin className="h-8 w-8 text-brand-red" />
               <h3 className="mt-4 text-lg font-semibold text-brand-navy">
-                Two Locations
+                Three Locations
               </h3>
               <ul className="mt-4 space-y-3">
                 {locations.map((location) => (

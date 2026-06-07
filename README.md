@@ -1,6 +1,6 @@
 # Buzz Thru Car Wash Website
 
-Online booking website for Buzz Thru Car Wash — two locations, 30-minute appointment slots, admin dashboard, and tablet check-in.
+Online booking website for Buzz Thru Car Wash: three locations, 30-minute appointment slots, admin dashboard, and tablet check-in.
 
 ## Stack
 
@@ -57,7 +57,7 @@ Open [http://localhost:3000](http://localhost:3000)
 |-------|-------------|
 | `/` | Home |
 | `/services` | Service list + placeholder pricing |
-| `/locations` | Two locations with Google Maps |
+| `/locations` | Three locations with Google Maps |
 | `/book` | Online booking wizard |
 | `/about` | About page |
 | `/faq` | FAQ |

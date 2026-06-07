@@ -24,7 +24,7 @@ export default function ContactPage() {
             {
               icon: MapPin,
               label: "Locations",
-              value: "Two Richmond locations. See Locations page.",
+              value: "Three Richmond locations. See Locations page.",
             },
           ].map(({ icon: Icon, label, value }) => (
             <div

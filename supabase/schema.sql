@@ -77,7 +77,8 @@ create policy "Admin update bookings"
 -- Real location data (Richmond, VA)
 insert into locations (name, slug, address, city, state, zip, phone, lat, lng, hours) values
   ('Buzz Thru - Hull Street', 'hull-street', '3704 Hull St', 'Richmond', 'VA', '23224', '(804) 910-1930', 37.5044, -77.4694, 'Open 24 hours'),
-  ('Buzz Thru - Midlothian Turnpike', 'midlothian-turnpike', '5223 Midlothian Turnpike', 'Richmond', 'VA', '23225', '(804) 910-1930', 37.4974, -77.5018, 'Open 24 hours')
+  ('Buzz Thru - Midlothian Turnpike', 'midlothian-turnpike', '5223 Midlothian Turnpike', 'Richmond', 'VA', '23225', '(804) 910-1930', 37.4974, -77.5018, 'Open 24 hours'),
+  ('Buzz Thru - Broad Rock Blvd', 'broad-rock-blvd', '2869 Broad Rock Blvd', 'Richmond', 'VA', '23224', '(804) 910-1930', 37.5142, -77.4591, 'Open 24 hours')
 on conflict (slug) do update set
   name = excluded.name,
   address = excluded.address,
