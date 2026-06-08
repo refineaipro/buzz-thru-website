@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { SectionHeading } from "@/components/SectionHeading";
+import { GoogleReviews } from "@/components/GoogleReviews";
 import { getLocations, getServices } from "@/lib/queries";
 import { BUSINESS } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
@@ -172,6 +173,8 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      <GoogleReviews />
 
       <section className="bg-brand-navy px-4 py-16 text-white sm:px-6">
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 text-center">

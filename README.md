@@ -64,7 +64,7 @@ Open [http://localhost:3000](http://localhost:3000)
 | `/contact` | Contact (form UI placeholder) |
 | `/confirmation/[id]` | Booking confirmation + QR code |
 | `/admin` | Booking dashboard |
-| `/admin/check-in` | Tablet check-in lookup |
+| `/admin/check-in` | Tablet check-in with QR scanner, phone, or code lookup |
 
 ## Booking Rules
 

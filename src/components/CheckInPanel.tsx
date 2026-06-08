@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/Card";
 import { Button } from "@/components/Button";
+import { QrScanner } from "@/components/QrScanner";
 import type { Booking } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
@@ -15,14 +16,15 @@ type CheckInPanelProps = {
 export function CheckInPanel({ initialBooking }: CheckInPanelProps) {
   const router = useRouter();
   const [phone, setPhone] = useState("");
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(initialBooking?.confirmation_code ?? "");
   const [bookings, setBookings] = useState<Booking[]>(
     initialBooking ? [initialBooking] : [],
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [scanning, setScanning] = useState(false);
 
-  async function lookup(type: "phone" | "code", value: string) {
+  const lookup = useCallback(async (type: "phone" | "code", value: string) => {
     setLoading(true);
     setError("");
 
@@ -37,10 +39,23 @@ export function CheckInPanel({ initialBooking }: CheckInPanelProps) {
       setBookings([]);
     } else {
       setBookings(data.bookings ?? []);
+      if ((data.bookings ?? []).length === 0) {
+        setError("No booking found for that search.");
+      }
     }
 
     setLoading(false);
-  }
+  }, []);
+
+  const handleScan = useCallback(
+    (scannedCode: string) => {
+      setScanning(false);
+      setCode(scannedCode);
+      setError("");
+      lookup("code", scannedCode);
+    },
+    [lookup],
+  );
 
   async function checkIn(id: string) {
     await fetch(`/api/bookings/${id}`, {
@@ -48,6 +63,11 @@ export function CheckInPanel({ initialBooking }: CheckInPanelProps) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "checked_in" }),
     });
+    setBookings((current) =>
+      current.map((booking) =>
+        booking.id === id ? { ...booking, status: "checked_in" } : booking,
+      ),
+    );
     router.refresh();
   }
 
@@ -55,10 +75,47 @@ export function CheckInPanel({ initialBooking }: CheckInPanelProps) {
     <div>
       <h2 className="text-2xl font-bold text-brand-navy">Tablet Check-In</h2>
       <p className="mt-2 text-sm text-slate-600">
-        Look up a booking by phone number or confirmation code.
+        Scan a customer QR code, or look up a booking by phone or confirmation
+        code.
       </p>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+      <Card className="mt-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="font-semibold text-brand-navy">Scan QR Code</h3>
+            <p className="mt-1 text-sm text-slate-600">
+              Point the camera at the confirmation QR on the customer&apos;s
+              phone or email.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant={scanning ? "secondary" : "primary"}
+            onClick={() => {
+              setError("");
+              setScanning((current) => !current);
+            }}
+          >
+            {scanning ? "Stop Scanner" : "Start Scanner"}
+          </Button>
+        </div>
+
+        {scanning ? (
+          <div className="mt-4 space-y-3">
+            <QrScanner
+              active={scanning}
+              onScan={handleScan}
+              onError={setError}
+            />
+            <p className="text-center text-xs text-slate-500">
+              Hold the QR steady inside the frame. The booking will load
+              automatically.
+            </p>
+          </div>
+        ) : null}
+      </Card>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Card>
           <h3 className="font-semibold text-brand-navy">Search by Phone</h3>
           <div className="mt-4 flex gap-2">
@@ -99,12 +156,16 @@ export function CheckInPanel({ initialBooking }: CheckInPanelProps) {
       </div>
 
       {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
+      {loading ? (
+        <p className="mt-4 text-sm text-slate-600">Looking up booking...</p>
+      ) : null}
 
       <div className="mt-8 space-y-4">
         {bookings.length === 0 ? (
           <Card>
             <p className="text-sm text-slate-600">
-              No bookings found. Search by phone or scan a QR code.
+              No bookings loaded yet. Scan a QR code or search by phone or
+              confirmation code.
             </p>
           </Card>
         ) : (
