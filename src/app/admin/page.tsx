@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Card } from "@/components/Card";
 import { getAdminUser, getBookings } from "@/lib/auth";
@@ -15,8 +16,23 @@ export default async function AdminDashboardPage() {
     <div>
       <h2 className="text-2xl font-bold text-brand-navy">All Bookings</h2>
       <p className="mt-2 text-sm text-slate-600">
-        Signed in as {user.email}. Manage appointments across both locations.
+        Signed in as {user.email}. Manage appointments across all locations.
       </p>
+
+      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:hidden">
+        <Link
+          href="/admin/check-in"
+          className="flex items-center justify-center rounded-xl border border-blue-100 bg-white px-4 py-4 text-center text-sm font-semibold text-brand-navy transition-colors hover:bg-brand-sky"
+        >
+          Open Check-In Scanner
+        </Link>
+        <Link
+          href="/"
+          className="flex items-center justify-center rounded-xl border border-blue-100 bg-white px-4 py-4 text-center text-sm font-semibold text-brand-navy transition-colors hover:bg-brand-sky"
+        >
+          View Public Site
+        </Link>
+      </div>
 
       <div className="mt-8 space-y-4">
         {bookings.length === 0 ? (
