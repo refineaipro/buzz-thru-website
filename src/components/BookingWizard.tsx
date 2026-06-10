@@ -53,6 +53,7 @@ export function BookingWizard({
   const [submitting, setSubmitting] = useState(false);
   const [checkingSlot, setCheckingSlot] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<BookingFieldErrors>({});
   const [bookableDates, setBookableDates] = useState<string[]>([]);
   const [form, setForm] = useState({
     customerName: "",
@@ -92,17 +93,6 @@ export function BookingWizard({
       .finally(() => setLoadingSlots(false));
   }, [locationId, date]);
 
-  const detailsErrors = useMemo(
-    () =>
-      validateBookingCustomerFields({
-        customerName: form.customerName,
-        customerEmail: form.customerEmail,
-        customerPhone: form.customerPhone,
-        licensePlate: form.licensePlate,
-      }),
-    [form],
-  );
-
   const canContinue = useMemo(() => {
     switch (step) {
       case 0:
@@ -112,11 +102,11 @@ export function BookingWizard({
       case 2:
         return Boolean(date && time);
       case 3:
-        return !hasValidationErrors(detailsErrors);
+        return true;
       default:
         return true;
     }
-  }, [step, locationId, serviceId, date, time, detailsErrors]);
+  }, [step, locationId, serviceId, date, time]);
 
   async function refreshSlotsForSelectedDate() {
     if (!locationId || !date) return [];
@@ -161,10 +151,19 @@ export function BookingWizard({
     }
 
     if (step === 3) {
-      if (hasValidationErrors(detailsErrors)) {
+      const errors = validateBookingCustomerFields({
+        customerName: form.customerName,
+        customerEmail: form.customerEmail,
+        customerPhone: form.customerPhone,
+        licensePlate: form.licensePlate,
+      });
+
+      if (hasValidationErrors(errors)) {
+        setFieldErrors(errors);
         return;
       }
 
+      setFieldErrors({});
       const slotAvailable = await ensureSelectedSlotAvailable();
       if (!slotAvailable) return;
     }
@@ -173,11 +172,20 @@ export function BookingWizard({
   }
 
   async function handleSubmit() {
-    if (hasValidationErrors(detailsErrors)) {
+    const errors = validateBookingCustomerFields({
+      customerName: form.customerName,
+      customerEmail: form.customerEmail,
+      customerPhone: form.customerPhone,
+      licensePlate: form.licensePlate,
+    });
+
+    if (hasValidationErrors(errors)) {
+      setFieldErrors(errors);
       setStep(3);
       return;
     }
 
+    setFieldErrors({});
     setSubmitting(true);
     setError("");
 
@@ -386,7 +394,7 @@ export function BookingWizard({
 
       {step === 3 ? (
         <div>
-          {hasValidationErrors(detailsErrors) ? (
+          {hasValidationErrors(fieldErrors) ? (
             <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
               Please fix the highlighted fields below before continuing.
             </div>
@@ -443,17 +451,20 @@ export function BookingWizard({
                         : e.target.value;
 
                   setForm((prev) => ({ ...prev, [field.key]: value }));
+                  if (fieldErrors[field.key as keyof BookingFieldErrors]) {
+                    setFieldErrors((prev) => ({ ...prev, [field.key]: undefined }));
+                  }
                 }}
                 className={cn(
                   "mt-2 w-full rounded-lg border px-4 py-3 text-sm",
-                  detailsErrors[field.key as keyof BookingFieldErrors]
+                  fieldErrors[field.key as keyof BookingFieldErrors]
                     ? "border-red-300 bg-red-50"
                     : "border-blue-100",
                 )}
               />
-              {detailsErrors[field.key as keyof BookingFieldErrors] ? (
+              {fieldErrors[field.key as keyof BookingFieldErrors] ? (
                 <p className="mt-1 text-xs text-red-600">
-                  {detailsErrors[field.key as keyof BookingFieldErrors]}
+                  {fieldErrors[field.key as keyof BookingFieldErrors]}
                 </p>
               ) : null}
             </div>
@@ -520,7 +531,10 @@ export function BookingWizard({
       <div className="mt-8 flex justify-between gap-4">
         <Button
           variant="secondary"
-          onClick={() => setStep((prev) => Math.max(prev - 1, 0))}
+          onClick={() => {
+            if (step === 3) setFieldErrors({});
+            setStep((prev) => Math.max(prev - 1, 0));
+          }}
           disabled={step === 0 || submitting}
         >
           Back
