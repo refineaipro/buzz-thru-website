@@ -72,11 +72,6 @@ function BarChart({
 }
 
 export function AnalyticsDashboard({ summary }: AnalyticsDashboardProps) {
-  const maxDailyBookings = Math.max(
-    ...summary.bookingsByDay.map((day) => day.count),
-    1,
-  );
-
   return (
     <div className="space-y-8">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -107,36 +102,6 @@ export function AnalyticsDashboard({ summary }: AnalyticsDashboardProps) {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <h3 className="text-lg font-semibold text-brand-navy">Bookings by day</h3>
-          <div className="mt-6 flex items-end gap-2">
-            {summary.bookingsByDay.length === 0 ? (
-              <p className="text-sm text-slate-500">No bookings in this period.</p>
-            ) : (
-              summary.bookingsByDay.map((day) => {
-                const height = Math.max((day.count / maxDailyBookings) * 100, day.count > 0 ? 12 : 0);
-                return (
-                  <div
-                    key={day.date}
-                    className="flex flex-1 flex-col items-center gap-2"
-                  >
-                    <span className="text-xs font-medium text-brand-navy">
-                      {day.count}
-                    </span>
-                    <div className="flex h-32 w-full items-end">
-                      <div
-                        className="w-full rounded-t-lg bg-brand-red transition-all duration-300"
-                        style={{ height: `${height}%` }}
-                      />
-                    </div>
-                    <span className="text-[11px] text-slate-500">{day.label}</span>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </Card>
-
         <Card>
           <h3 className="text-lg font-semibold text-brand-navy">Revenue by location</h3>
           <div className="mt-6">

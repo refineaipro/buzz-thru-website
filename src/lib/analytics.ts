@@ -1,8 +1,4 @@
-import {
-  format,
-  startOfDay,
-  subDays,
-} from "date-fns";
+import { startOfDay, subDays } from "date-fns";
 import { createServiceClient, isSupabaseConfigured } from "@/lib/supabase/service";
 import { formatRefundReason } from "@/lib/refund-reasons";
 import type { Booking } from "@/lib/types";
@@ -22,7 +18,6 @@ export type AnalyticsSummary = {
   refundCount: number;
   refundedAmount: number;
   completionRate: number;
-  bookingsByDay: { date: string; label: string; count: number }[];
   revenueByLocation: { locationId: string; name: string; revenue: number; count: number }[];
   servicePopularity: { serviceId: string; name: string; count: number; revenue: number }[];
   statusBreakdown: { status: string; count: number }[];
@@ -68,50 +63,11 @@ function emptySummary(range: AnalyticsRange): AnalyticsSummary {
     refundCount: 0,
     refundedAmount: 0,
     completionRate: 0,
-    bookingsByDay: [],
     revenueByLocation: [],
     servicePopularity: [],
     statusBreakdown: [],
     recentRefunds: [],
   };
-}
-
-function isCountableBooking(booking: Booking) {
-  return (
-    booking.payment_status === "paid" || booking.payment_status === "refunded"
-  );
-}
-
-function buildBookingsByDay(
-  bookings: Booking[],
-  range: AnalyticsRange,
-  start: Date,
-  end: Date,
-) {
-  const counts = new Map<string, number>();
-
-  for (const booking of bookings) {
-    if (!isCountableBooking(booking)) continue;
-    const key = format(new Date(booking.created_at), "yyyy-MM-dd");
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-
-  const days: { date: string; label: string; count: number }[] = [];
-  const totalDays = range === "today" ? 1 : range === "7d" ? 7 : 30;
-  const offset = totalDays - 1;
-
-  for (let index = offset; index >= 0; index -= 1) {
-    const day = startOfDay(subDays(end, index));
-    if (day < start) continue;
-    const key = format(day, "yyyy-MM-dd");
-    days.push({
-      date: key,
-      label: range === "today" ? "Today" : format(day, "MMM d"),
-      count: counts.get(key) ?? 0,
-    });
-  }
-
-  return days;
 }
 
 export async function getAnalyticsSummary(
@@ -213,7 +169,6 @@ export async function getAnalyticsSummary(
     refundCount: refundedBookings.length,
     refundedAmount,
     completionRate,
-    bookingsByDay: buildBookingsByDay(bookings, range, start, end),
     revenueByLocation: [...locationMap.values()].sort(
       (a, b) => b.revenue - a.revenue,
     ),
