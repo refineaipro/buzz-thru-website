@@ -53,7 +53,6 @@ export function BookingWizard({
   const [submitting, setSubmitting] = useState(false);
   const [checkingSlot, setCheckingSlot] = useState(false);
   const [error, setError] = useState("");
-  const [fieldErrors, setFieldErrors] = useState<BookingFieldErrors>({});
   const [bookableDates, setBookableDates] = useState<string[]>([]);
   const [form, setForm] = useState({
     customerName: "",
@@ -93,6 +92,17 @@ export function BookingWizard({
       .finally(() => setLoadingSlots(false));
   }, [locationId, date]);
 
+  const detailsErrors = useMemo(
+    () =>
+      validateBookingCustomerFields({
+        customerName: form.customerName,
+        customerEmail: form.customerEmail,
+        customerPhone: form.customerPhone,
+        licensePlate: form.licensePlate,
+      }),
+    [form],
+  );
+
   const canContinue = useMemo(() => {
     switch (step) {
       case 0:
@@ -102,18 +112,11 @@ export function BookingWizard({
       case 2:
         return Boolean(date && time);
       case 3:
-        return !hasValidationErrors(
-          validateBookingCustomerFields({
-            customerName: form.customerName,
-            customerEmail: form.customerEmail,
-            customerPhone: form.customerPhone,
-            licensePlate: form.licensePlate,
-          }),
-        );
+        return !hasValidationErrors(detailsErrors);
       default:
         return true;
     }
-  }, [step, locationId, serviceId, date, time, form]);
+  }, [step, locationId, serviceId, date, time, detailsErrors]);
 
   async function refreshSlotsForSelectedDate() {
     if (!locationId || !date) return [];
@@ -158,19 +161,10 @@ export function BookingWizard({
     }
 
     if (step === 3) {
-      const errors = validateBookingCustomerFields({
-        customerName: form.customerName,
-        customerEmail: form.customerEmail,
-        customerPhone: form.customerPhone,
-        licensePlate: form.licensePlate,
-      });
-
-      if (hasValidationErrors(errors)) {
-        setFieldErrors(errors);
+      if (hasValidationErrors(detailsErrors)) {
         return;
       }
 
-      setFieldErrors({});
       const slotAvailable = await ensureSelectedSlotAvailable();
       if (!slotAvailable) return;
     }
@@ -179,20 +173,11 @@ export function BookingWizard({
   }
 
   async function handleSubmit() {
-    const errors = validateBookingCustomerFields({
-      customerName: form.customerName,
-      customerEmail: form.customerEmail,
-      customerPhone: form.customerPhone,
-      licensePlate: form.licensePlate,
-    });
-
-    if (hasValidationErrors(errors)) {
-      setFieldErrors(errors);
+    if (hasValidationErrors(detailsErrors)) {
       setStep(3);
       return;
     }
 
-    setFieldErrors({});
     setSubmitting(true);
     setError("");
 
@@ -400,7 +385,13 @@ export function BookingWizard({
       ) : null}
 
       {step === 3 ? (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          {hasValidationErrors(detailsErrors) ? (
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              Please fix the highlighted fields below before continuing.
+            </div>
+          ) : null}
+          <div className="grid gap-4 sm:grid-cols-2">
           {[
             {
               key: "customerName",
@@ -452,20 +443,17 @@ export function BookingWizard({
                         : e.target.value;
 
                   setForm((prev) => ({ ...prev, [field.key]: value }));
-                  if (fieldErrors[field.key as keyof BookingFieldErrors]) {
-                    setFieldErrors((prev) => ({ ...prev, [field.key]: undefined }));
-                  }
                 }}
                 className={cn(
                   "mt-2 w-full rounded-lg border px-4 py-3 text-sm",
-                  fieldErrors[field.key as keyof BookingFieldErrors]
+                  detailsErrors[field.key as keyof BookingFieldErrors]
                     ? "border-red-300 bg-red-50"
                     : "border-blue-100",
                 )}
               />
-              {fieldErrors[field.key as keyof BookingFieldErrors] ? (
+              {detailsErrors[field.key as keyof BookingFieldErrors] ? (
                 <p className="mt-1 text-xs text-red-600">
-                  {fieldErrors[field.key as keyof BookingFieldErrors]}
+                  {detailsErrors[field.key as keyof BookingFieldErrors]}
                 </p>
               ) : null}
             </div>
@@ -485,6 +473,7 @@ export function BookingWizard({
                 </option>
               ))}
             </select>
+          </div>
           </div>
         </div>
       ) : null}
