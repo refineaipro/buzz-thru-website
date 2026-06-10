@@ -81,6 +81,6 @@ export const FAQ_ITEMS = [
   {
     question: "Is payment required when booking?",
     answer:
-      "Yes, full payment is collected at the time of booking. Stripe integration is coming soon. For now the payment step is a placeholder.",
+      "Yes, full payment is collected at the time of booking through Stripe. Your appointment is confirmed after payment is complete.",
   },
 ];

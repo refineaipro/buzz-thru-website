@@ -45,17 +45,3 @@ export async function getBookings(filters?: {
   if (error) throw error;
   return (data ?? []) as Booking[];
 }
-
-export async function getBookingById(id: string) {
-  if (!isSupabaseConfigured()) return null;
-
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
-    .from("bookings")
-    .select("*, locations(*), services(*)")
-    .eq("id", id)
-    .single();
-
-  if (error) return null;
-  return data as Booking;
-}

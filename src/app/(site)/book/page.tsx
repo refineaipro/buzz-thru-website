@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import { BookingWizard } from "@/components/BookingWizard";
 import { SectionHeading } from "@/components/SectionHeading";
 import { getLocations, getServices } from "@/lib/queries";
+import { isStripeConfigured } from "@/lib/stripe";
 
 export const metadata: Metadata = {
   title: "Book Hand Wash",
 };
 
 type BookPageProps = {
-  searchParams: Promise<{ location?: string; service?: string }>;
+  searchParams: Promise<{ location?: string; service?: string; cancelled?: string }>;
 };
 
 export default async function BookPage({ searchParams }: BookPageProps) {
@@ -31,6 +32,8 @@ export default async function BookPage({ searchParams }: BookPageProps) {
           services={services}
           initialLocationId={params.location}
           initialServiceSlug={params.service}
+          stripeEnabled={isStripeConfigured()}
+          cancelled={params.cancelled === "1"}
         />
       </div>
     </div>

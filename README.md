@@ -10,7 +10,7 @@ Online booking website for Buzz Thru Car Wash: three locations, 30-minute appoin
 | Design | UI UX Pro Max skill + navy/red brand palette |
 | Database | Supabase (PostgreSQL) |
 | Auth | Supabase Auth (admin email/password) |
-| Payments | Placeholder now → Stripe later |
+| Payments | Stripe Checkout |
 | Deploy | Vercel |
 
 ## Local Development
@@ -37,9 +37,25 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
 ```
 
 > Without Supabase credentials, the site runs with **placeholder data** for locations/services. Bookings work in mock mode for UI testing.
+
+> Without Stripe keys, the booking flow creates mock paid bookings locally. Add Stripe keys to collect real payments.
+
+### Stripe setup
+
+1. In [Stripe Dashboard](https://dashboard.stripe.com), copy your **Secret key** (`sk_live_...` or `sk_test_...`)
+2. Add to `.env` and Vercel:
+   - `STRIPE_SECRET_KEY`
+   - `STRIPE_WEBHOOK_SECRET` (from step 3)
+3. Create a webhook endpoint:
+   - **Local:** `stripe listen --forward-to localhost:3000/api/webhooks/stripe`
+   - **Production:** `https://yourdomain.com/api/webhooks/stripe`
+   - Events: `checkout.session.completed`, `checkout.session.expired`
+4. Set `NEXT_PUBLIC_SITE_URL` to your production URL (required for Stripe redirects)
 
 ### 4. Run the dev server
 
@@ -72,7 +88,7 @@ Open [http://localhost:3000](http://localhost:3000)
 - Mon–Sat, 8 AM – 6 PM (closed Sunday)
 - Book up to **7 days** ahead
 - Minimum **24 hours** advance notice
-- Full payment at booking (placeholder until Stripe)
+- Full payment at booking via Stripe Checkout
 - Tax included in displayed prices
 
 ## Deploy to Vercel
@@ -89,9 +105,8 @@ In Vercel → **Settings → Domains**, add your domain and update DNS records a
 
 ## Later Integrations
 
-- **Stripe** — replace placeholder payment step in `/book`
-- **Email (Resend/SendGrid)** — wire up `src/lib/email.ts` for confirmation emails with QR
-- **Contact form** — connect `/contact` form submission
+- **Resend** — booking confirmation + contact form emails
+- **Twilio** — optional SMS reminders
 
 ## Brand Colors
 

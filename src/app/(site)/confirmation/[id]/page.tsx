@@ -1,15 +1,16 @@
 import { format } from "date-fns";
 import QRCode from "qrcode";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
-import { getBookingByCode } from "@/lib/booking";
-import { getBookingById } from "@/lib/auth";
+import { getBookingByCode, getBookingById } from "@/lib/booking";
+import { verifyCheckoutSession } from "@/lib/checkout";
+import { getSiteUrl } from "@/lib/stripe";
 import { formatCurrency } from "@/lib/utils";
 
 type ConfirmationPageProps = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ code?: string }>;
+  searchParams: Promise<{ code?: string; session_id?: string }>;
 };
 
 export default async function ConfirmationPage({
@@ -17,9 +18,18 @@ export default async function ConfirmationPage({
   searchParams,
 }: ConfirmationPageProps) {
   const { id } = await params;
-  const { code } = await searchParams;
+  const { code, session_id: sessionId } = await searchParams;
 
-  let booking = code ? await getBookingByCode(code) : await getBookingById(id);
+  let booking =
+    sessionId ? await verifyCheckoutSession(sessionId) : null;
+
+  if (!booking && code) {
+    booking = await getBookingByCode(code);
+  }
+
+  if (!booking) {
+    booking = await getBookingById(id);
+  }
 
   if (!booking) {
     return (
@@ -35,7 +45,25 @@ export default async function ConfirmationPage({
     );
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  if (booking.payment_status !== "paid") {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-16 text-center">
+        <LoaderCircle className="mx-auto h-12 w-12 animate-spin text-brand-blue" />
+        <h1 className="mt-4 text-2xl font-bold text-brand-navy">
+          Confirming Payment
+        </h1>
+        <p className="mt-4 text-slate-600">
+          Your payment is still processing. Refresh this page in a moment, or
+          check your email for confirmation.
+        </p>
+        <Button href={`/confirmation/${booking.id}?code=${booking.confirmation_code}`} className="mt-8">
+          Refresh
+        </Button>
+      </div>
+    );
+  }
+
+  const siteUrl = getSiteUrl();
   const checkInUrl = `${siteUrl}/admin/check-in?code=${booking.confirmation_code}`;
   const qrDataUrl = await QRCode.toDataURL(checkInUrl, {
     margin: 2,
@@ -103,8 +131,8 @@ export default async function ConfirmationPage({
       </Card>
 
       <p className="mt-6 text-center text-sm text-slate-500">
-        A confirmation email with this QR code would be sent to{" "}
-        {booking.customer_email} (mock for now).
+        A confirmation email with your booking details will be sent to{" "}
+        {booking.customer_email}.
       </p>
 
       <div className="mt-8 text-center">

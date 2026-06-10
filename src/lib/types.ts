@@ -43,6 +43,7 @@ export type Booking = {
 };
 
 export type BookingStatus =
+  | "pending_payment"
   | "confirmed"
   | "checked_in"
   | "completed"

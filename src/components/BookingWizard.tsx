@@ -23,6 +23,8 @@ type BookingWizardProps = {
   services: Service[];
   initialLocationId?: string;
   initialServiceSlug?: string;
+  stripeEnabled?: boolean;
+  cancelled?: boolean;
 };
 
 const steps = ["Location", "Service", "Date & Time", "Details", "Payment"];
@@ -32,6 +34,8 @@ export function BookingWizard({
   services,
   initialLocationId,
   initialServiceSlug,
+  stripeEnabled = false,
+  cancelled = false,
 }: BookingWizardProps) {
   const [step, setStep] = useState(0);
   const [locationId, setLocationId] = useState(initialLocationId ?? "");
@@ -105,20 +109,28 @@ export function BookingWizard({
     setSubmitting(true);
     setError("");
 
+    const payload = {
+      locationId,
+      serviceId,
+      scheduledAt: time,
+      ...form,
+    };
+
     try {
-      const response = await fetch("/api/bookings", {
+      const endpoint = stripeEnabled ? "/api/checkout" : "/api/bookings";
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          locationId,
-          serviceId,
-          scheduledAt: time,
-          ...form,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Booking failed.");
+
+      if (stripeEnabled && data.url) {
+        window.location.href = data.url;
+        return;
+      }
 
       window.location.href = `/confirmation/${data.booking.id}?code=${data.booking.confirmation_code}`;
     } catch (err) {
@@ -130,6 +142,13 @@ export function BookingWizard({
 
   return (
     <div className="mx-auto max-w-3xl">
+      {cancelled ? (
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Payment was cancelled. Your appointment was not booked. Pick a time and
+          try again when you are ready.
+        </div>
+      ) : null}
+
       <div className="mb-8 flex flex-wrap gap-2">
         {steps.map((label, index) => (
           <div
@@ -362,8 +381,9 @@ export function BookingWizard({
             </div>
           </dl>
           <p className="mt-4 rounded-lg bg-brand-sky px-4 py-3 text-sm text-slate-600">
-            Payment placeholder. Stripe will be connected later. Clicking confirm
-            simulates a successful payment.
+            {stripeEnabled
+              ? "You will be redirected to Stripe to pay securely. Your appointment is confirmed after payment."
+              : "Payment is in test mode without Stripe. Clicking confirm creates a mock booking."}
           </p>
         </Card>
       ) : null}
@@ -386,7 +406,13 @@ export function BookingWizard({
           </Button>
         ) : (
           <Button onClick={handleSubmit} disabled={submitting}>
-            {submitting ? "Confirming..." : "Confirm & Pay"}
+            {submitting
+              ? stripeEnabled
+                ? "Redirecting..."
+                : "Confirming..."
+              : stripeEnabled
+                ? "Pay with Stripe"
+                : "Confirm & Pay"}
           </Button>
         )}
       </div>
