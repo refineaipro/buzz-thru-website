@@ -2,21 +2,30 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, ScanLine } from "lucide-react";
+import { BarChart3, LayoutDashboard, ScanLine } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const links = [
   {
     href: "/admin",
     label: "Bookings",
+    shortLabel: "Bookings",
     icon: LayoutDashboard,
     isActive: (pathname: string) => pathname === "/admin",
   },
   {
     href: "/admin/check-in",
     label: "Check-In",
+    shortLabel: "Check-In",
     icon: ScanLine,
     isActive: (pathname: string) => pathname.startsWith("/admin/check-in"),
+  },
+  {
+    href: "/admin/analytics",
+    label: "Analytics",
+    shortLabel: "Stats",
+    icon: BarChart3,
+    isActive: (pathname: string) => pathname.startsWith("/admin/analytics"),
   },
 ] as const;
 
@@ -64,21 +73,21 @@ export function AdminBottomNav() {
       className="fixed inset-x-0 bottom-0 z-50 border-t border-blue-100 bg-white shadow-[0_-4px_20px_rgba(11,29,67,0.08)] pb-[env(safe-area-inset-bottom)] lg:hidden"
     >
       <div className="mx-auto flex max-w-lg">
-        {links.map(({ href, label, icon: Icon, isActive }) => {
+        {links.map(({ href, label, shortLabel, icon: Icon, isActive }) => {
           const active = isActive(pathname);
           return (
             <Link
               key={href}
               href={href}
               className={cn(
-                "flex min-h-[4.5rem] flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-xs font-semibold transition-colors",
+                "flex min-h-[4.5rem] flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-[11px] font-semibold transition-colors",
                 active
                   ? "text-brand-red"
                   : "text-slate-600 hover:bg-brand-light hover:text-brand-navy",
               )}
             >
-              <Icon className="h-6 w-6" aria-hidden />
-              {label}
+              <Icon className="h-5 w-5" aria-hidden />
+              {shortLabel}
             </Link>
           );
         })}
