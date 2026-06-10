@@ -1,5 +1,9 @@
 import { confirmBookingPayment } from "@/lib/booking";
-import { getStripe, isStripeConfigured } from "@/lib/stripe";
+import {
+  getPaymentIntentId,
+  getStripe,
+  isStripeConfigured,
+} from "@/lib/stripe";
 
 export async function verifyCheckoutSession(sessionId: string) {
   if (!isStripeConfigured() || !sessionId) return null;
@@ -10,7 +14,10 @@ export async function verifyCheckoutSession(sessionId: string) {
   if (!bookingId) return null;
 
   if (session.payment_status === "paid") {
-    return confirmBookingPayment(bookingId);
+    return confirmBookingPayment(
+      bookingId,
+      getPaymentIntentId(session.payment_intent),
+    );
   }
 
   return null;

@@ -35,6 +35,10 @@ export type Booking = {
   license_plate: string;
   status: string;
   payment_status: string;
+  stripe_payment_intent_id?: string | null;
+  refund_reason?: string | null;
+  refund_notes?: string | null;
+  refunded_at?: string | null;
   amount: number;
   created_at: string;
   updated_at: string;

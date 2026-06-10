@@ -3,6 +3,7 @@ import {
   createPendingBooking,
   formatBookingAppointment,
 } from "@/lib/booking";
+import { parseBookingRequestBody } from "@/lib/booking-input";
 import { getAvailableSlots } from "@/lib/slots";
 import { getLocationById, getServiceById } from "@/lib/queries";
 import { getSiteUrl, getStripe, isStripeConfigured } from "@/lib/stripe";
@@ -17,6 +18,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
+    const parsed = parseBookingRequestBody(body);
+
+    if ("error" in parsed) {
+      return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+    }
+
     const {
       locationId,
       serviceId,
@@ -26,23 +33,7 @@ export async function POST(request: NextRequest) {
       customerPhone,
       carType,
       licensePlate,
-    } = body;
-
-    if (
-      !locationId ||
-      !serviceId ||
-      !scheduledAt ||
-      !customerName ||
-      !customerEmail ||
-      !customerPhone ||
-      !carType ||
-      !licensePlate
-    ) {
-      return NextResponse.json(
-        { error: "All booking fields are required." },
-        { status: 400 },
-      );
-    }
+    } = parsed.input;
 
     const date = scheduledAt.slice(0, 10);
     const slots = await getAvailableSlots(locationId, date);
@@ -65,16 +56,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const booking = await createPendingBooking({
-      locationId,
-      serviceId,
-      scheduledAt,
-      customerName,
-      customerEmail,
-      customerPhone,
-      carType,
-      licensePlate,
-    });
+    const booking = await createPendingBooking(parsed.input);
 
     const siteUrl = getSiteUrl();
     const stripe = getStripe();

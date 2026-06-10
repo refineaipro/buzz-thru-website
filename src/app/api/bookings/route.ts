@@ -1,36 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createBooking } from "@/lib/booking";
+import { parseBookingRequestBody } from "@/lib/booking-input";
 import { getAvailableSlots } from "@/lib/slots";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const {
-      locationId,
-      serviceId,
-      scheduledAt,
-      customerName,
-      customerEmail,
-      customerPhone,
-      carType,
-      licensePlate,
-    } = body;
+    const parsed = parseBookingRequestBody(body);
 
-    if (
-      !locationId ||
-      !serviceId ||
-      !scheduledAt ||
-      !customerName ||
-      !customerEmail ||
-      !customerPhone ||
-      !carType ||
-      !licensePlate
-    ) {
-      return NextResponse.json(
-        { error: "All booking fields are required." },
-        { status: 400 },
-      );
+    if ("error" in parsed) {
+      return NextResponse.json({ error: parsed.error }, { status: parsed.status });
     }
+
+    const { locationId, scheduledAt } = parsed.input;
 
     const date = scheduledAt.slice(0, 10);
     const slots = await getAvailableSlots(locationId, date);
@@ -43,16 +25,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const booking = await createBooking({
-      locationId,
-      serviceId,
-      scheduledAt,
-      customerName,
-      customerEmail,
-      customerPhone,
-      carType,
-      licensePlate,
-    });
+    const booking = await createBooking(parsed.input);
 
     return NextResponse.json({ booking }, { status: 201 });
   } catch (error) {

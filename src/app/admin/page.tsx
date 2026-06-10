@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Card } from "@/components/Card";
 import { getAdminUser, getBookings } from "@/lib/auth";
+import { formatRefundReason } from "@/lib/refund-reasons";
 import { formatCurrency } from "@/lib/utils";
 import { AdminBookingActions } from "@/components/AdminBookingActions";
 
@@ -85,7 +86,7 @@ export default async function AdminDashboardPage() {
                       <dd>{formatCurrency(Number(booking.amount))}</dd>
                     </div>
                   </dl>
-                  <div className="mt-3 flex gap-2 text-xs">
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
                     <span className="rounded-full bg-brand-sky px-2 py-1 font-medium text-brand-navy">
                       {booking.status}
                     </span>
@@ -93,6 +94,12 @@ export default async function AdminDashboardPage() {
                       {booking.payment_status}
                     </span>
                   </div>
+                  {booking.payment_status === "refunded" && booking.refund_reason ? (
+                    <p className="mt-3 text-sm text-slate-600">
+                      <span className="font-medium text-brand-navy">Refund reason:</span>{" "}
+                      {formatRefundReason(booking.refund_reason, booking.refund_notes)}
+                    </p>
+                  ) : null}
                 </div>
                 <AdminBookingActions booking={booking} />
               </div>

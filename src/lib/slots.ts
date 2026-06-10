@@ -87,16 +87,21 @@ export async function getAvailableSlots(
   const supabase = createServiceClient();
   const { data: existingBookings } = await supabase
     .from("bookings")
-    .select("scheduled_at")
+    .select("scheduled_at, status, created_at")
     .eq("location_id", locationId)
     .gte("scheduled_at", dayStart.toISOString())
     .lt("scheduled_at", dayEnd.toISOString())
     .neq("status", "cancelled");
 
+  const pendingCutoff = Date.now() - 35 * 60 * 1000;
+
   const bookedTimes = new Set(
-    (existingBookings ?? []).map((booking) =>
-      new Date(booking.scheduled_at).toISOString(),
-    ),
+    (existingBookings ?? [])
+      .filter((booking) => {
+        if (booking.status !== "pending_payment") return true;
+        return new Date(booking.created_at).getTime() >= pendingCutoff;
+      })
+      .map((booking) => new Date(booking.scheduled_at).toISOString()),
   );
 
   return slots.map((slot) => ({

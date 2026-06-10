@@ -23,3 +23,11 @@ export function isStripeConfigured() {
 export function getSiteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 }
+
+export function getPaymentIntentId(
+  paymentIntent: string | { id: string } | null | undefined,
+) {
+  if (!paymentIntent) return null;
+  if (typeof paymentIntent === "string") return paymentIntent;
+  return paymentIntent.id;
+}

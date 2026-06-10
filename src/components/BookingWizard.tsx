@@ -10,6 +10,12 @@ import {
   OUTSIDE_ONLY_WASHES,
 } from "@/lib/services-catalog";
 import type { Location, Service } from "@/lib/types";
+import {
+  formatPhoneInput,
+  hasValidationErrors,
+  type BookingFieldErrors,
+  validateBookingCustomerFields,
+} from "@/lib/validation";
 import { cn, formatCurrency } from "@/lib/utils";
 
 type TimeSlot = {
@@ -45,7 +51,9 @@ export function BookingWizard({
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [checkingSlot, setCheckingSlot] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<BookingFieldErrors>({});
   const [bookableDates, setBookableDates] = useState<string[]>([]);
   const [form, setForm] = useState({
     customerName: "",
@@ -94,26 +102,112 @@ export function BookingWizard({
       case 2:
         return Boolean(date && time);
       case 3:
-        return (
-          form.customerName.trim() &&
-          form.customerEmail.trim() &&
-          form.customerPhone.trim() &&
-          form.licensePlate.trim()
+        return !hasValidationErrors(
+          validateBookingCustomerFields({
+            customerName: form.customerName,
+            customerEmail: form.customerEmail,
+            customerPhone: form.customerPhone,
+            licensePlate: form.licensePlate,
+          }),
         );
       default:
         return true;
     }
   }, [step, locationId, serviceId, date, time, form]);
 
+  async function refreshSlotsForSelectedDate() {
+    if (!locationId || !date) return [];
+
+    const response = await fetch(
+      `/api/slots?locationId=${locationId}&date=${date}`,
+    );
+    const data = await response.json();
+    const nextSlots = data.slots ?? [];
+    setSlots(nextSlots);
+    return nextSlots as TimeSlot[];
+  }
+
+  async function ensureSelectedSlotAvailable() {
+    if (!locationId || !date || !time) return false;
+
+    setCheckingSlot(true);
+    try {
+      const nextSlots = await refreshSlotsForSelectedDate();
+      const slot = nextSlots.find((item) => item.value === time);
+      if (!slot?.available) {
+        setTime("");
+        setError("That time slot is no longer available. Please pick another time.");
+        setStep(2);
+        return false;
+      }
+      return true;
+    } catch {
+      setError("Could not verify slot availability. Please try again.");
+      return false;
+    } finally {
+      setCheckingSlot(false);
+    }
+  }
+
+  async function handleContinue() {
+    setError("");
+
+    if (step === 2) {
+      const slotAvailable = await ensureSelectedSlotAvailable();
+      if (!slotAvailable) return;
+    }
+
+    if (step === 3) {
+      const errors = validateBookingCustomerFields({
+        customerName: form.customerName,
+        customerEmail: form.customerEmail,
+        customerPhone: form.customerPhone,
+        licensePlate: form.licensePlate,
+      });
+
+      if (hasValidationErrors(errors)) {
+        setFieldErrors(errors);
+        return;
+      }
+
+      setFieldErrors({});
+      const slotAvailable = await ensureSelectedSlotAvailable();
+      if (!slotAvailable) return;
+    }
+
+    setStep((prev) => prev + 1);
+  }
+
   async function handleSubmit() {
+    const errors = validateBookingCustomerFields({
+      customerName: form.customerName,
+      customerEmail: form.customerEmail,
+      customerPhone: form.customerPhone,
+      licensePlate: form.licensePlate,
+    });
+
+    if (hasValidationErrors(errors)) {
+      setFieldErrors(errors);
+      setStep(3);
+      return;
+    }
+
+    setFieldErrors({});
     setSubmitting(true);
     setError("");
+
+    const slotAvailable = await ensureSelectedSlotAvailable();
+    if (!slotAvailable) {
+      setSubmitting(false);
+      return;
+    }
 
     const payload = {
       locationId,
       serviceId,
       scheduledAt: time,
       ...form,
+      licensePlate: form.licensePlate.toUpperCase(),
     };
 
     try {
@@ -308,10 +402,34 @@ export function BookingWizard({
       {step === 3 ? (
         <div className="grid gap-4 sm:grid-cols-2">
           {[
-            { key: "customerName", label: "Full Name", type: "text" },
-            { key: "customerEmail", label: "Email", type: "email" },
-            { key: "customerPhone", label: "Phone", type: "tel" },
-            { key: "licensePlate", label: "License Plate", type: "text" },
+            {
+              key: "customerName",
+              label: "Full Name",
+              type: "text",
+              placeholder: "Jane Smith",
+              autoComplete: "name",
+            },
+            {
+              key: "customerEmail",
+              label: "Email",
+              type: "email",
+              placeholder: "name@example.com",
+              autoComplete: "email",
+            },
+            {
+              key: "customerPhone",
+              label: "Phone",
+              type: "tel",
+              placeholder: "(804) 555-1234",
+              autoComplete: "tel",
+            },
+            {
+              key: "licensePlate",
+              label: "License Plate",
+              type: "text",
+              placeholder: "ABC1234",
+              autoComplete: "off",
+            },
           ].map((field) => (
             <div
               key={field.key}
@@ -323,11 +441,33 @@ export function BookingWizard({
               <input
                 type={field.type}
                 value={form[field.key as keyof typeof form]}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, [field.key]: e.target.value }))
-                }
-                className="mt-2 w-full rounded-lg border border-blue-100 px-4 py-3 text-sm"
+                placeholder={field.placeholder}
+                autoComplete={field.autoComplete}
+                onChange={(e) => {
+                  const value =
+                    field.key === "customerPhone"
+                      ? formatPhoneInput(e.target.value)
+                      : field.key === "licensePlate"
+                        ? e.target.value.toUpperCase()
+                        : e.target.value;
+
+                  setForm((prev) => ({ ...prev, [field.key]: value }));
+                  if (fieldErrors[field.key as keyof BookingFieldErrors]) {
+                    setFieldErrors((prev) => ({ ...prev, [field.key]: undefined }));
+                  }
+                }}
+                className={cn(
+                  "mt-2 w-full rounded-lg border px-4 py-3 text-sm",
+                  fieldErrors[field.key as keyof BookingFieldErrors]
+                    ? "border-red-300 bg-red-50"
+                    : "border-blue-100",
+                )}
               />
+              {fieldErrors[field.key as keyof BookingFieldErrors] ? (
+                <p className="mt-1 text-xs text-red-600">
+                  {fieldErrors[field.key as keyof BookingFieldErrors]}
+                </p>
+              ) : null}
             </div>
           ))}
           <div>
@@ -382,7 +522,7 @@ export function BookingWizard({
           </dl>
           <p className="mt-4 rounded-lg bg-brand-sky px-4 py-3 text-sm text-slate-600">
             {stripeEnabled
-              ? "You will be redirected to Stripe to pay securely. Your appointment is confirmed after payment."
+              ? "Your time slot is held for 30 minutes once you click Pay with Stripe. The appointment is confirmed after payment completes."
               : "Payment is in test mode without Stripe. Clicking confirm creates a mock booking."}
           </p>
         </Card>
@@ -399,10 +539,10 @@ export function BookingWizard({
 
         {step < steps.length - 1 ? (
           <Button
-            onClick={() => setStep((prev) => prev + 1)}
-            disabled={!canContinue}
+            onClick={handleContinue}
+            disabled={!canContinue || checkingSlot}
           >
-            Continue
+            {checkingSlot ? "Checking slot..." : "Continue"}
           </Button>
         ) : (
           <Button onClick={handleSubmit} disabled={submitting}>

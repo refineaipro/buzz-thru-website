@@ -4,7 +4,7 @@ import { createServiceClient, isSupabaseConfigured } from "@/lib/supabase/servic
 import type { Booking, CreateBookingInput } from "@/lib/types";
 import { getLocationById, getServiceById } from "@/lib/queries";
 import { sendBookingConfirmation } from "@/lib/email";
-import { getSiteUrl } from "@/lib/stripe";
+import { getSiteUrl, getStripe, isStripeConfigured } from "@/lib/stripe";
 
 export function generateConfirmationCode() {
   return randomBytes(4).toString("hex").toUpperCase();
@@ -119,7 +119,10 @@ export async function createPendingBooking(input: CreateBookingInput) {
   });
 }
 
-export async function confirmBookingPayment(bookingId: string) {
+export async function confirmBookingPayment(
+  bookingId: string,
+  stripePaymentIntentId?: string | null,
+) {
   if (!isSupabaseConfigured()) return null;
 
   const supabase = createServiceClient();
@@ -133,15 +136,33 @@ export async function confirmBookingPayment(bookingId: string) {
 
   const booking = existing as Booking;
   if (booking.payment_status === "paid") {
+    if (stripePaymentIntentId && !booking.stripe_payment_intent_id) {
+      const { data, error } = await supabase
+        .from("bookings")
+        .update({ stripe_payment_intent_id: stripePaymentIntentId })
+        .eq("id", bookingId)
+        .select("*, locations(*), services(*)")
+        .single();
+
+      if (error) throw error;
+      return data as Booking;
+    }
+
     return booking;
+  }
+
+  const updates: Record<string, string> = {
+    status: "confirmed",
+    payment_status: "paid",
+  };
+
+  if (stripePaymentIntentId) {
+    updates.stripe_payment_intent_id = stripePaymentIntentId;
   }
 
   const { data, error } = await supabase
     .from("bookings")
-    .update({
-      status: "confirmed",
-      payment_status: "paid",
-    })
+    .update(updates)
     .eq("id", bookingId)
     .select("*, locations(*), services(*)")
     .single();
@@ -151,6 +172,62 @@ export async function confirmBookingPayment(bookingId: string) {
   const confirmed = data as Booking;
   await sendConfirmationForBooking(confirmed);
   return confirmed;
+}
+
+export async function refundBooking(
+  bookingId: string,
+  refundReason: string,
+  refundNotes?: string,
+) {
+  if (!isSupabaseConfigured()) {
+    return {
+      id: bookingId,
+      status: "cancelled",
+      payment_status: "refunded",
+    } as Booking;
+  }
+
+  const booking = await getBookingById(bookingId);
+  if (!booking) {
+    throw new Error("Booking not found.");
+  }
+
+  if (booking.payment_status === "refunded") {
+    return booking;
+  }
+
+  if (booking.payment_status !== "paid") {
+    throw new Error("Only paid bookings can be refunded.");
+  }
+
+  if (isStripeConfigured()) {
+    if (!booking.stripe_payment_intent_id) {
+      throw new Error(
+        "No Stripe payment is linked to this booking. Refund it manually in the Stripe Dashboard.",
+      );
+    }
+
+    await getStripe().refunds.create({
+      payment_intent: booking.stripe_payment_intent_id,
+    });
+  }
+
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("bookings")
+    .update({
+      status: "cancelled",
+      payment_status: "refunded",
+      refund_reason: refundReason,
+      refund_notes: refundNotes?.trim() || null,
+      refunded_at: new Date().toISOString(),
+    })
+    .eq("id", bookingId)
+    .select("*, locations(*), services(*)")
+    .single();
+
+  if (error) throw error;
+  return data as Booking;
 }
 
 export async function cancelPendingBooking(bookingId: string) {

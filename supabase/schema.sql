@@ -41,6 +41,10 @@ create table if not exists bookings (
   license_plate text not null,
   status text not null default 'confirmed',
   payment_status text not null default 'paid',
+  stripe_payment_intent_id text,
+  refund_reason text,
+  refund_notes text,
+  refunded_at timestamptz,
   amount numeric(10, 2) not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

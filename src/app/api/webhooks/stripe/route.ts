@@ -4,7 +4,7 @@ import {
   cancelPendingBooking,
   confirmBookingPayment,
 } from "@/lib/booking";
-import { getStripe } from "@/lib/stripe";
+import { getPaymentIntentId, getStripe } from "@/lib/stripe";
 
 export const runtime = "nodejs";
 
@@ -36,7 +36,10 @@ export async function POST(request: Request) {
         const session = event.data.object as Stripe.Checkout.Session;
         const bookingId = session.metadata?.bookingId;
         if (bookingId && session.payment_status === "paid") {
-          await confirmBookingPayment(bookingId);
+          await confirmBookingPayment(
+            bookingId,
+            getPaymentIntentId(session.payment_intent),
+          );
         }
         break;
       }
