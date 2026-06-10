@@ -10,9 +10,15 @@ export const REFUND_REASONS = [
 
 export type RefundReasonValue = (typeof REFUND_REASONS)[number]["value"];
 
+const STRIPE_REFUND_REASON_LABELS: Record<string, string> = {
+  stripe_dashboard_refund: "Refunded in Stripe Dashboard",
+  stripe_refund: "Refunded in Stripe",
+};
+
 export function formatRefundReason(reason: string, notes?: string | null) {
   const match = REFUND_REASONS.find((item) => item.value === reason);
-  const label = match?.label ?? reason;
+  const label =
+    match?.label ?? STRIPE_REFUND_REASON_LABELS[reason] ?? reason;
 
   if (reason === "other" && notes?.trim()) {
     return `${label}: ${notes.trim()}`;

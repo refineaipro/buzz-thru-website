@@ -289,6 +289,7 @@ export async function markBookingRefundedFromStripe(
   bookingId: string,
   options?: {
     stripeRefundId?: string;
+    stripePaymentIntentId?: string;
     reason?: string;
     notes?: string;
   },
@@ -301,6 +302,11 @@ export async function markBookingRefundedFromStripe(
   }
 
   const supabase = createServiceClient();
+  const stripeUpdates: Record<string, string> = {};
+  if (!booking.stripe_payment_intent_id && options?.stripePaymentIntentId) {
+    stripeUpdates.stripe_payment_intent_id = options.stripePaymentIntentId;
+  }
+
   const { data, error } = await supabase
     .from("bookings")
     .update({
@@ -310,6 +316,7 @@ export async function markBookingRefundedFromStripe(
       refund_notes: options?.notes ?? null,
       refunded_at: new Date().toISOString(),
       stripe_refund_id: options?.stripeRefundId ?? booking.stripe_refund_id,
+      ...stripeUpdates,
     })
     .eq("id", bookingId)
     .eq("payment_status", "paid")

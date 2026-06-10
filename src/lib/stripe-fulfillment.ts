@@ -68,12 +68,14 @@ async function syncRefundWebhookEvent(event: Stripe.Event) {
 
   const booking =
     (await getBookingByPaymentIntent(paymentIntentId)) ??
-    (await findBookingFromPaymentIntent(paymentIntentId));
+    (await findBookingFromPaymentIntent(paymentIntentId)) ??
+    (await findBookingFromCheckoutSession(paymentIntentId));
 
   if (!booking || booking.payment_status === "refunded") return;
 
   await markBookingRefundedFromStripe(booking.id, {
     stripeRefundId: refundId ?? undefined,
+    stripePaymentIntentId: paymentIntentId,
     reason: "stripe_dashboard_refund",
     notes: "Synced automatically from Stripe.",
   });
@@ -82,6 +84,17 @@ async function syncRefundWebhookEvent(event: Stripe.Event) {
 async function findBookingFromPaymentIntent(paymentIntentId: string) {
   const paymentIntent = await getStripe().paymentIntents.retrieve(paymentIntentId);
   const bookingId = paymentIntent.metadata?.bookingId;
+  if (!bookingId) return null;
+  return getBookingById(bookingId);
+}
+
+async function findBookingFromCheckoutSession(paymentIntentId: string) {
+  const sessions = await getStripe().checkout.sessions.list({
+    payment_intent: paymentIntentId,
+    limit: 1,
+  });
+  const session = sessions.data[0];
+  const bookingId = session?.metadata?.bookingId ?? session?.client_reference_id;
   if (!bookingId) return null;
   return getBookingById(bookingId);
 }
