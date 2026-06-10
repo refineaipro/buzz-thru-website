@@ -3,7 +3,7 @@ import QRCode from "qrcode";
 import { CheckCircle2, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
-import { getBookingByCode, getBookingById } from "@/lib/booking";
+import { getBookingByCode } from "@/lib/booking";
 import { verifyCheckoutSession } from "@/lib/checkout";
 import { getSiteUrl } from "@/lib/stripe";
 import { formatCurrency } from "@/lib/utils";
@@ -20,15 +20,17 @@ export default async function ConfirmationPage({
   const { id } = await params;
   const { code, session_id: sessionId } = await searchParams;
 
-  let booking =
-    sessionId ? await verifyCheckoutSession(sessionId) : null;
+  let booking = null;
 
-  if (!booking && code) {
-    booking = await getBookingByCode(code);
+  if (sessionId) {
+    booking = await verifyCheckoutSession(sessionId, id);
   }
 
-  if (!booking) {
-    booking = await getBookingById(id);
+  if (!booking && code) {
+    const byCode = await getBookingByCode(code);
+    if (byCode?.id === id) {
+      booking = byCode;
+    }
   }
 
   if (!booking) {

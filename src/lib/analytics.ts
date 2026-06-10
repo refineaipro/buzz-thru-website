@@ -84,8 +84,6 @@ export async function getAnalyticsSummary(
   let query = supabase
     .from("bookings")
     .select("*, locations(*), services(*)")
-    .gte("created_at", start.toISOString())
-    .lte("created_at", end.toISOString())
     .in("payment_status", ["paid", "refunded"])
     .order("created_at", { ascending: false });
 
@@ -96,7 +94,16 @@ export async function getAnalyticsSummary(
   const { data, error } = await query;
   if (error) throw error;
 
-  const bookings = (data ?? []) as Booking[];
+  const startIso = start.toISOString();
+  const endIso = end.toISOString();
+
+  const bookings = ((data ?? []) as Booking[]).filter((booking) => {
+    const eventAt =
+      booking.payment_status === "refunded"
+        ? booking.refunded_at ?? booking.updated_at
+        : booking.paid_at ?? booking.created_at;
+    return eventAt >= startIso && eventAt <= endIso;
+  });
   const paidBookings = bookings.filter((booking) => booking.payment_status === "paid");
   const refundedBookings = bookings.filter(
     (booking) => booking.payment_status === "refunded",

@@ -42,9 +42,14 @@ create table if not exists bookings (
   status text not null default 'confirmed',
   payment_status text not null default 'paid',
   stripe_payment_intent_id text,
+  stripe_checkout_session_id text,
+  stripe_refund_id text,
   refund_reason text,
   refund_notes text,
   refunded_at timestamptz,
+  paid_at timestamptz,
+  checked_in_at timestamptz,
+  completed_at timestamptz,
   amount numeric(10, 2) not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -53,6 +58,16 @@ create table if not exists bookings (
 create index if not exists bookings_scheduled_at_idx on bookings (scheduled_at);
 create index if not exists bookings_customer_phone_idx on bookings (customer_phone);
 create index if not exists bookings_location_scheduled_idx on bookings (location_id, scheduled_at);
+
+create unique index if not exists bookings_active_slot_idx
+  on bookings (location_id, scheduled_at)
+  where status not in ('cancelled');
+
+create table if not exists stripe_webhook_events (
+  id text primary key,
+  type text not null,
+  processed_at timestamptz not null default now()
+);
 
 alter table locations enable row level security;
 alter table services enable row level security;

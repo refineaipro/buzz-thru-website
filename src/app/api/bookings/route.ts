@@ -2,8 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { createBooking } from "@/lib/booking";
 import { parseBookingRequestBody } from "@/lib/booking-input";
 import { getAvailableSlots } from "@/lib/slots";
+import { isStripeConfigured } from "@/lib/stripe";
 
 export async function POST(request: NextRequest) {
+  if (isStripeConfigured()) {
+    return NextResponse.json(
+      { error: "Online payment is required. Use checkout to book." },
+      { status: 403 },
+    );
+  }
+
   try {
     const body = await request.json();
     const parsed = parseBookingRequestBody(body);

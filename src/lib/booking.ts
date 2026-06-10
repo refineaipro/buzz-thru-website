@@ -9,7 +9,12 @@ import {
   assertCompleteAllowed,
   assertRefundAllowed,
 } from "@/lib/booking-status";
-import { getSiteUrl, getStripe, isStripeConfigured } from "@/lib/stripe";
+import {
+  getSiteUrl,
+  getStripe,
+  isStripeConfigured,
+  refundIdempotencyKey,
+} from "@/lib/stripe";
 
 export function generateConfirmationCode() {
   return randomBytes(4).toString("hex").toUpperCase();
@@ -19,10 +24,19 @@ export function normalizePhone(phone: string) {
   return phone.replace(/\D/g, "");
 }
 
+function isSlotConflictError(error: { code?: string }) {
+  return error.code === "23505";
+}
+
 type CreateBookingOptions = {
   status?: string;
   paymentStatus?: string;
   sendEmail?: boolean;
+};
+
+type ConfirmPaymentOptions = {
+  stripePaymentIntentId?: string | null;
+  stripeCheckoutSessionId?: string | null;
 };
 
 async function sendConfirmationForBooking(booking: Booking) {
@@ -71,6 +85,7 @@ export async function createBooking(
       license_plate: input.licensePlate.toUpperCase(),
       status,
       payment_status: paymentStatus,
+      paid_at: paymentStatus === "paid" ? new Date().toISOString() : null,
       amount,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -86,6 +101,7 @@ export async function createBooking(
   }
 
   const supabase = createServiceClient();
+  const now = new Date().toISOString();
   const { data, error } = await supabase
     .from("bookings")
     .insert({
@@ -100,12 +116,18 @@ export async function createBooking(
       license_plate: input.licensePlate.toUpperCase(),
       status,
       payment_status: paymentStatus,
+      paid_at: paymentStatus === "paid" ? now : null,
       amount,
     })
     .select("*, locations(*), services(*)")
     .single();
 
-  if (error) throw error;
+  if (error) {
+    if (isSlotConflictError(error)) {
+      throw new Error("That time slot is no longer available.");
+    }
+    throw error;
+  }
 
   const booking = data as Booking;
 
@@ -124,9 +146,22 @@ export async function createPendingBooking(input: CreateBookingInput) {
   });
 }
 
+export async function attachCheckoutSessionToBooking(
+  bookingId: string,
+  sessionId: string,
+) {
+  if (!isSupabaseConfigured()) return;
+
+  const supabase = createServiceClient();
+  await supabase
+    .from("bookings")
+    .update({ stripe_checkout_session_id: sessionId })
+    .eq("id", bookingId);
+}
+
 export async function confirmBookingPayment(
   bookingId: string,
-  stripePaymentIntentId?: string | null,
+  options: ConfirmPaymentOptions = {},
 ) {
   if (!isSupabaseConfigured()) return null;
 
@@ -140,39 +175,51 @@ export async function confirmBookingPayment(
   if (!existing) return null;
 
   const booking = existing as Booking;
-  if (booking.payment_status === "paid") {
-    if (stripePaymentIntentId && !booking.stripe_payment_intent_id) {
-      const { data, error } = await supabase
-        .from("bookings")
-        .update({ stripe_payment_intent_id: stripePaymentIntentId })
-        .eq("id", bookingId)
-        .select("*, locations(*), services(*)")
-        .single();
+  const stripeUpdates: Record<string, string> = {};
 
-      if (error) throw error;
-      return data as Booking;
+  if (options.stripePaymentIntentId) {
+    stripeUpdates.stripe_payment_intent_id = options.stripePaymentIntentId;
+  }
+  if (options.stripeCheckoutSessionId) {
+    stripeUpdates.stripe_checkout_session_id = options.stripeCheckoutSessionId;
+  }
+
+  if (booking.payment_status === "paid") {
+    if (Object.keys(stripeUpdates).length === 0) {
+      return booking;
     }
 
-    return booking;
+    const { data, error } = await supabase
+      .from("bookings")
+      .update(stripeUpdates)
+      .eq("id", bookingId)
+      .select("*, locations(*), services(*)")
+      .single();
+
+    if (error) throw error;
+    return data as Booking;
   }
 
   const updates: Record<string, string> = {
     status: "confirmed",
     payment_status: "paid",
+    paid_at: new Date().toISOString(),
+    ...stripeUpdates,
   };
-
-  if (stripePaymentIntentId) {
-    updates.stripe_payment_intent_id = stripePaymentIntentId;
-  }
 
   const { data, error } = await supabase
     .from("bookings")
     .update(updates)
     .eq("id", bookingId)
+    .eq("payment_status", "pending")
     .select("*, locations(*), services(*)")
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
+
+  if (!data) {
+    return getBookingById(bookingId);
+  }
 
   const confirmed = data as Booking;
   await sendConfirmationForBooking(confirmed);
@@ -203,6 +250,8 @@ export async function refundBooking(
 
   assertRefundAllowed(booking);
 
+  let stripeRefundId: string | null = null;
+
   if (isStripeConfigured()) {
     if (!booking.stripe_payment_intent_id) {
       throw new Error(
@@ -210,9 +259,11 @@ export async function refundBooking(
       );
     }
 
-    await getStripe().refunds.create({
-      payment_intent: booking.stripe_payment_intent_id,
-    });
+    const refund = await getStripe().refunds.create(
+      { payment_intent: booking.stripe_payment_intent_id },
+      { idempotencyKey: refundIdempotencyKey(bookingId) },
+    );
+    stripeRefundId = refund.id;
   }
 
   const supabase = createServiceClient();
@@ -224,12 +275,48 @@ export async function refundBooking(
       refund_reason: refundReason,
       refund_notes: refundNotes?.trim() || null,
       refunded_at: new Date().toISOString(),
+      stripe_refund_id: stripeRefundId,
     })
     .eq("id", bookingId)
     .select("*, locations(*), services(*)")
     .single();
 
   if (error) throw error;
+  return data as Booking;
+}
+
+export async function markBookingRefundedFromStripe(
+  bookingId: string,
+  options?: {
+    stripeRefundId?: string;
+    reason?: string;
+    notes?: string;
+  },
+) {
+  if (!isSupabaseConfigured()) return null;
+
+  const booking = await getBookingById(bookingId);
+  if (!booking || booking.payment_status === "refunded") {
+    return booking;
+  }
+
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("bookings")
+    .update({
+      status: "cancelled",
+      payment_status: "refunded",
+      refund_reason: options?.reason ?? "stripe_refund",
+      refund_notes: options?.notes ?? null,
+      refunded_at: new Date().toISOString(),
+      stripe_refund_id: options?.stripeRefundId ?? booking.stripe_refund_id,
+    })
+    .eq("id", bookingId)
+    .eq("payment_status", "paid")
+    .select("*, locations(*), services(*)")
+    .single();
+
+  if (error) return null;
   return data as Booking;
 }
 
@@ -256,6 +343,19 @@ export async function getBookingById(id: string) {
 
   if (error) return null;
   return data as Booking;
+}
+
+export async function getBookingByPaymentIntent(paymentIntentId: string) {
+  if (!isSupabaseConfigured()) return null;
+
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("bookings")
+    .select("*, locations(*), services(*)")
+    .eq("stripe_payment_intent_id", paymentIntentId)
+    .maybeSingle();
+
+  return (data as Booking) ?? null;
 }
 
 export async function getBookingByCode(code: string) {
@@ -314,6 +414,14 @@ export async function updateBookingStatus(
   const supabase = createServiceClient();
   const updates: Record<string, string> = { status };
   if (paymentStatus) updates.payment_status = paymentStatus;
+
+  if (status === "checked_in" && !booking.checked_in_at) {
+    updates.checked_in_at = new Date().toISOString();
+  }
+
+  if (status === "completed" && !booking.completed_at) {
+    updates.completed_at = new Date().toISOString();
+  }
 
   const { data, error } = await supabase
     .from("bookings")

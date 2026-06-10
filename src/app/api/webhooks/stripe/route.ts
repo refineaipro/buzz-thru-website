@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
+import { processStripeWebhookEvent } from "@/lib/stripe-fulfillment";
 import {
-  cancelPendingBooking,
-  confirmBookingPayment,
-} from "@/lib/booking";
-import { getPaymentIntentId, getStripe } from "@/lib/stripe";
+  claimStripeWebhookEvent,
+  releaseStripeWebhookEvent,
+} from "@/lib/stripe-webhook-events";
+import { getStripe } from "@/lib/stripe";
 
 export const runtime = "nodejs";
 
@@ -30,35 +31,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
-  try {
-    switch (event.type) {
-      case "checkout.session.completed": {
-        const session = event.data.object as Stripe.Checkout.Session;
-        const bookingId = session.metadata?.bookingId;
-        if (bookingId && session.payment_status === "paid") {
-          await confirmBookingPayment(
-            bookingId,
-            getPaymentIntentId(session.payment_intent),
-          );
-        }
-        break;
-      }
-      case "checkout.session.expired": {
-        const session = event.data.object as Stripe.Checkout.Session;
-        const bookingId = session.metadata?.bookingId;
-        if (bookingId) {
-          await cancelPendingBooking(bookingId);
-        }
-        break;
-      }
-      default:
-        break;
-    }
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Webhook handler failed.";
-    return NextResponse.json({ error: message }, { status: 500 });
+  const shouldProcess = await claimStripeWebhookEvent(event.id, event.type);
+  if (!shouldProcess) {
+    return NextResponse.json({ received: true });
   }
 
-  return NextResponse.json({ received: true });
+  try {
+    await processStripeWebhookEvent(event);
+    return NextResponse.json({ received: true });
+  } catch (error) {
+    await releaseStripeWebhookEvent(event.id);
+    console.error("Stripe webhook processing failed:", error);
+    return NextResponse.json(
+      { error: "Webhook handler failed." },
+      { status: 500 },
+    );
+  }
 }

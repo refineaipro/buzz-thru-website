@@ -1,5 +1,7 @@
 import Stripe from "stripe";
 
+const STRIPE_API_VERSION = "2026-05-27.dahlia" as const;
+
 let stripeClient: Stripe | null = null;
 
 export function getStripe() {
@@ -9,7 +11,9 @@ export function getStripe() {
   }
 
   if (!stripeClient) {
-    stripeClient = new Stripe(key);
+    stripeClient = new Stripe(key, {
+      apiVersion: STRIPE_API_VERSION,
+    });
   }
 
   return stripeClient;
@@ -25,9 +29,17 @@ export function getSiteUrl() {
 }
 
 export function getPaymentIntentId(
-  paymentIntent: string | { id: string } | null | undefined,
+  paymentIntent: string | Stripe.PaymentIntent | null | undefined,
 ) {
   if (!paymentIntent) return null;
   if (typeof paymentIntent === "string") return paymentIntent;
   return paymentIntent.id;
+}
+
+export function checkoutIdempotencyKey(bookingId: string) {
+  return `checkout-session-${bookingId}`;
+}
+
+export function refundIdempotencyKey(bookingId: string) {
+  return `refund-${bookingId}`;
 }

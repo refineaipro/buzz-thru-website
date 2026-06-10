@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  attachCheckoutSessionToBooking,
+  cancelPendingBooking,
   createPendingBooking,
   formatBookingAppointment,
 } from "@/lib/booking";
 import { parseBookingRequestBody } from "@/lib/booking-input";
 import { getAvailableSlots } from "@/lib/slots";
 import { getLocationById, getServiceById } from "@/lib/queries";
-import { getSiteUrl, getStripe, isStripeConfigured } from "@/lib/stripe";
+import {
+  checkoutIdempotencyKey,
+  getSiteUrl,
+  getStripe,
+  isStripeConfigured,
+} from "@/lib/stripe";
 
 export async function POST(request: NextRequest) {
   if (!isStripeConfigured()) {
@@ -15,6 +22,8 @@ export async function POST(request: NextRequest) {
       { status: 503 },
     );
   }
+
+  let pendingBookingId: string | null = null;
 
   try {
     const body = await request.json();
@@ -57,50 +66,67 @@ export async function POST(request: NextRequest) {
     }
 
     const booking = await createPendingBooking(parsed.input);
+    pendingBookingId = booking.id;
 
     const siteUrl = getSiteUrl();
     const stripe = getStripe();
     const amountCents = Math.round(Number(service.price) * 100);
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      customer_email: customerEmail,
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: "usd",
-            unit_amount: amountCents,
-            product_data: {
-              name: `${service.name} Hand Wash`,
-              description: `${location.name} · ${formatBookingAppointment(booking)} · ${carType} · ${licensePlate.toUpperCase()}`,
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: "payment",
+        customer_email: customerEmail,
+        client_reference_id: booking.id,
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: "usd",
+              unit_amount: amountCents,
+              product_data: {
+                name: `${service.name} Hand Wash`,
+                description: `${location.name} · ${formatBookingAppointment(booking)} · ${carType} · ${licensePlate.toUpperCase()}`,
+              },
             },
           },
+        ],
+        metadata: {
+          bookingId: booking.id,
         },
-      ],
-      metadata: {
-        bookingId: booking.id,
+        payment_intent_data: {
+          metadata: {
+            bookingId: booking.id,
+          },
+        },
+        success_url: `${siteUrl}/confirmation/${booking.id}?code=${booking.confirmation_code}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${siteUrl}/book?cancelled=1`,
+        expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
       },
-      success_url: `${siteUrl}/confirmation/${booking.id}?code=${booking.confirmation_code}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${siteUrl}/book?cancelled=1`,
-      expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
-    });
+      {
+        idempotencyKey: checkoutIdempotencyKey(booking.id),
+      },
+    );
 
     if (!session.url) {
+      await cancelPendingBooking(booking.id);
       return NextResponse.json(
         { error: "Could not start checkout. Please try again." },
         { status: 500 },
       );
     }
 
+    await attachCheckoutSessionToBooking(booking.id, session.id);
+
     return NextResponse.json({ url: session.url });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "Checkout could not start.",
-      },
-      { status: 500 },
-    );
+    if (pendingBookingId) {
+      await cancelPendingBooking(pendingBookingId);
+    }
+
+    const message =
+      error instanceof Error ? error.message : "Checkout could not start.";
+    const status = message.includes("no longer available") ? 409 : 500;
+
+    return NextResponse.json({ error: message }, { status });
   }
 }

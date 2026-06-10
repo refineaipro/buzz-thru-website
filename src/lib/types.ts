@@ -36,9 +36,14 @@ export type Booking = {
   status: string;
   payment_status: string;
   stripe_payment_intent_id?: string | null;
+  stripe_checkout_session_id?: string | null;
+  stripe_refund_id?: string | null;
   refund_reason?: string | null;
   refund_notes?: string | null;
   refunded_at?: string | null;
+  paid_at?: string | null;
+  checked_in_at?: string | null;
+  completed_at?: string | null;
   amount: number;
   created_at: string;
   updated_at: string;
