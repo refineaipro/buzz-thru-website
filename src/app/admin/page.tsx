@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Card } from "@/components/Card";
 import { getAdminUser, getBookings } from "@/lib/auth";
+import { getBookingStatusLabel } from "@/lib/booking-status";
 import { formatRefundReason } from "@/lib/refund-reasons";
 import { formatCurrency } from "@/lib/utils";
 import { AdminBookingActions } from "@/components/AdminBookingActions";
@@ -88,7 +89,7 @@ export default async function AdminDashboardPage() {
                   </dl>
                   <div className="mt-3 flex flex-wrap gap-2 text-xs">
                     <span className="rounded-full bg-brand-sky px-2 py-1 font-medium text-brand-navy">
-                      {booking.status}
+                      {getBookingStatusLabel(booking.status)}
                     </span>
                     <span className="rounded-full bg-blue-100 px-2 py-1 font-medium text-brand-navy">
                       {booking.payment_status}

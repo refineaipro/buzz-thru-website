@@ -4,6 +4,11 @@ import { createServiceClient, isSupabaseConfigured } from "@/lib/supabase/servic
 import type { Booking, CreateBookingInput } from "@/lib/types";
 import { getLocationById, getServiceById } from "@/lib/queries";
 import { sendBookingConfirmation } from "@/lib/email";
+import {
+  assertCheckInAllowed,
+  assertCompleteAllowed,
+  assertRefundAllowed,
+} from "@/lib/booking-status";
 import { getSiteUrl, getStripe, isStripeConfigured } from "@/lib/stripe";
 
 export function generateConfirmationCode() {
@@ -196,9 +201,7 @@ export async function refundBooking(
     return booking;
   }
 
-  if (booking.payment_status !== "paid") {
-    throw new Error("Only paid bookings can be refunded.");
-  }
+  assertRefundAllowed(booking);
 
   if (isStripeConfigured()) {
     if (!booking.stripe_payment_intent_id) {
@@ -293,6 +296,19 @@ export async function updateBookingStatus(
 ) {
   if (!isSupabaseConfigured()) {
     return { id, status, payment_status: paymentStatus ?? "paid" };
+  }
+
+  const booking = await getBookingById(id);
+  if (!booking) {
+    throw new Error("Booking not found.");
+  }
+
+  if (status === "checked_in") {
+    assertCheckInAllowed(booking);
+  }
+
+  if (status === "completed") {
+    assertCompleteAllowed(booking);
   }
 
   const supabase = createServiceClient();

@@ -3,6 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Booking } from "@/lib/types";
+import {
+  canCheckInBooking,
+  canCompleteBooking,
+  canRefundBooking,
+} from "@/lib/booking-status";
 import { Button } from "@/components/Button";
 import { RefundBookingDialog } from "@/components/RefundBookingDialog";
 
@@ -15,6 +20,10 @@ export function AdminBookingActions({ booking }: AdminBookingActionsProps) {
   const [loading, setLoading] = useState("");
   const [error, setError] = useState("");
   const [refundOpen, setRefundOpen] = useState(false);
+
+  const checkInAllowed = canCheckInBooking(booking);
+  const completeAllowed = canCompleteBooking(booking);
+  const refundAllowed = canRefundBooking(booking);
 
   async function update(status?: string) {
     setLoading(status ?? "update");
@@ -65,6 +74,28 @@ export function AdminBookingActions({ booking }: AdminBookingActionsProps) {
     router.refresh();
   }
 
+  function getHelperText() {
+    if (booking.payment_status === "refunded") {
+      return "This booking was refunded and cancelled.";
+    }
+
+    if (booking.status === "completed") {
+      return "Wash finished. No further actions needed.";
+    }
+
+    if (booking.status === "checked_in") {
+      return "Customer is on site. Mark wash complete when the service is finished.";
+    }
+
+    if (booking.status === "confirmed") {
+      return "Customer has not arrived yet. Refund is available only before check-in.";
+    }
+
+    return null;
+  }
+
+  const helperText = getHelperText();
+
   return (
     <>
       <div className="space-y-2">
@@ -72,43 +103,44 @@ export function AdminBookingActions({ booking }: AdminBookingActionsProps) {
           <Button
             variant="secondary"
             className="px-3 py-2 text-xs"
-            disabled={
-              loading !== "" ||
-              booking.status === "checked_in" ||
-              booking.payment_status === "refunded"
-            }
+            disabled={loading !== "" || !checkInAllowed}
             onClick={() => update("checked_in")}
           >
-            Check In
+            {booking.status === "checked_in" || booking.status === "completed"
+              ? "Checked In"
+              : loading === "checked_in"
+                ? "Checking in..."
+                : "Check In"}
           </Button>
           <Button
             variant="secondary"
             className="px-3 py-2 text-xs"
-            disabled={
-              loading !== "" ||
-              booking.status === "completed" ||
-              booking.payment_status === "refunded"
-            }
+            disabled={loading !== "" || !completeAllowed}
             onClick={() => update("completed")}
           >
-            Complete
+            {booking.status === "completed"
+              ? "Wash Complete"
+              : loading === "completed"
+                ? "Saving..."
+                : "Mark Wash Complete"}
           </Button>
-          <Button
-            variant="ghost"
-            className="px-3 py-2 text-xs"
-            disabled={
-              loading !== "" ||
-              booking.payment_status === "refunded" ||
-              booking.payment_status !== "paid"
-            }
-            onClick={() => {
-              setError("");
-              setRefundOpen(true);
-            }}
-          >
-            Refund
-          </Button>
+          {refundAllowed ? (
+            <Button
+              variant="ghost"
+              className="px-3 py-2 text-xs"
+              disabled={loading !== ""}
+              onClick={() => {
+                setError("");
+                setRefundOpen(true);
+              }}
+            >
+              Refund
+            </Button>
+          ) : null}
         </div>
+        {helperText ? (
+          <p className="text-xs text-slate-500">{helperText}</p>
+        ) : null}
         {error && !refundOpen ? (
           <p className="text-xs text-red-600">{error}</p>
         ) : null}
